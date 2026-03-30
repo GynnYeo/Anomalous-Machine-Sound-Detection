@@ -131,10 +131,11 @@ Notes:
 
 1. Prepare dataset in `data/raw/`
 2. Create reproducible splits
-3. Choose a config
-4. Train using the standard training script
-5. Evaluate and save outputs
-6. Record results in `experiments.md`
+3. Implement and verify the dataset loader on the saved split manifest
+4. Add deterministic preprocessing such as spectrogram or log-mel features
+5. Train using the standard training script
+6. Evaluate and save outputs
+7. Record results in `experiments.md`
 
 ---
 
@@ -204,6 +205,18 @@ The script also prints a summary after splitting, including:
 * class counts per split
 * class proportions per split
 * number of groups per split
+
+### Next pipeline step
+
+After creating the split manifest, the next step is to implement the dataset loader in `src/data/dataset.py`.
+
+The dataset loader should:
+- read the saved split CSV
+- filter rows by `train`, `val`, or `test`
+- load raw WAV files from `filepath`
+- return the audio sample together with the binary label
+
+Deterministic preprocessing such as spectrogram or log-mel conversion should be added after the dataset loader is verified. Train-time augmentation can be added later through dataset transforms.
 
 
 ### Train a model
