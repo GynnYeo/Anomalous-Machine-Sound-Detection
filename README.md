@@ -218,6 +218,18 @@ The dataset loader should:
 
 Deterministic preprocessing such as spectrogram or log-mel conversion should be added after the dataset loader is verified. Train-time augmentation can be added later through dataset transforms.
 
+### Dataset loader
+
+The baseline dataset loader is implemented in `src/data/dataset.py`.
+
+It:
+- reads a saved split manifest
+- filters rows by `train`, `val`, or `test`
+- loads raw WAV files from `filepath`
+- returns the audio sample together with the binary label
+
+The raw loader has been verified on the saved split manifest. Deterministic preprocessing such as spectrogram or log-mel conversion is the next pipeline step. In the current dataset setup, raw samples are multichannel audio.
+
 
 ### Train a model
 <!-- 
