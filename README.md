@@ -90,11 +90,27 @@ The goal is not only to build a working model, but to create a **reproducible ex
 
 ## Data Layout
 
-The raw MIMII dataset should be placed under `data/raw/`.
+Place the raw MIMII WAV files under `data/raw/`.
 
-The internal folder structure under `data/raw/` follows the dataset's original organization
-(e.g. machine type, SNR condition, machine ID, and normal/abnormal labels), and is indexed
-programmatically by the data loading pipeline.
+Expected folder layout:
+
+```text
+data/raw/{snr_db}_{machine_type}/{machine_id}/{label}/*.wav
+```
+
+Example:
+
+```text
+data/raw/-6_dB_fan/id_00/normal/*.wav
+data/raw/-6_dB_fan/id_00/abnormal/*.wav
+data/raw/0_dB_pump/id_02/normal/*.wav
+data/raw/6_dB_valve/id_04/abnormal/*.wav
+```
+
+Notes:
+* Valid labels are `normal` and `abnormal`
+* The split/index pipeline reads metadata from the folder names, so keep this structure unchanged
+* `data/raw/` should contain the original audio files, while generated CSV manifests are written under `data/splits/`
 
 ---
 
@@ -138,9 +154,57 @@ Download the MIMII dataset and place it in:
 data/raw/
 ```
 
+The dataset must follow:
+
+```text
+data/raw/{snr_db}_{machine_type}/{machine_id}/{label}/*.wav
+```
+
+with `label` set to `normal` or `abnormal`.
+
 ---
 
 ## Usage
+
+### Generate split manifests
+
+The split pipeline is driven by `scripts/make_splits.py`. It:
+
+- scans `data/raw/` and builds a master index of all WAV files
+- optionally saves `data/splits/master_index.csv`
+- filters the dataset to a selected scope such as one machine type
+- creates deterministic train/validation/test splits by group, not by individual file
+- saves the resulting split manifest under `data/splits/`
+
+For the one-machine-type baseline, each split group is defined as:
+
+- `group_id = (machine_id, snr_db)`
+
+This means all files from the same machine ID and dB condition stay in exactly one split, which helps reduce leakage across train, validation, and test.
+
+Example: create a `fan` split with the default ratios and seed:
+
+```bash
+python scripts/make_splits.py --machine-type fan --write-master-index
+```
+
+Useful flags:
+* `--machine-type fan` filters the split to a single machine type such as `fan`
+* `--write-master-index` also saves `data/splits/master_index.csv`
+* `--seed 42` controls the deterministic group shuffle before assigning train/val/test
+* `--train-ratio`, `--val-ratio`, and `--test-ratio` set the split proportions and must sum to `1.0`
+
+Expected outputs:
+* `data/splits/master_index.csv` when `--write-master-index` is used
+* `data/splits/fan_split_seed42.csv` for the example command above
+
+The script also prints a summary after splitting, including:
+* total files
+* files per split
+* class counts per split
+* class proportions per split
+* number of groups per split
+
 
 ### Train a model
 <!-- 
