@@ -206,19 +206,25 @@ The script also prints a summary after splitting, including:
 * class proportions per split
 * number of groups per split
 
-### Next pipeline step
+### Current pipeline status
 
-After creating the split manifest, the next step is to implement the dataset loader in `src/data/dataset.py`.
+After creating the split manifest, the baseline data pipeline now includes:
 
-The dataset loader should:
-- read the saved split CSV
-- filter rows by `train`, `val`, or `test`
-- load raw WAV files from `filepath`
-- return the audio sample together with the binary label
+1. saved split manifest loading
+2. raw WAV loading through `src/data/dataset.py`
+3. deterministic preprocessing through dataset transforms
 
-Deterministic preprocessing such as spectrogram or log-mel conversion should be added after the dataset loader is verified. Train-time augmentation can be added later through dataset transforms.
+The dataset loader:
+- reads the saved split CSV
+- filters rows by `train`, `val`, or `test`
+- loads raw WAV files from `filepath`
+- returns the raw audio sample together with the binary label
 
-### Dataset loader
+Baseline preprocessing is applied on the fly through a dataset transform. In the current baseline, raw multichannel audio is averaged to mono and converted to a log-mel spectrogram.
+
+Train-time augmentation is not part of the current baseline and can be added later through separate dataset transforms.
+
+### Dataset loader and baseline preprocessing
 
 The baseline dataset loader is implemented in `src/data/dataset.py`.
 
@@ -226,9 +232,18 @@ It:
 - reads a saved split manifest
 - filters rows by `train`, `val`, or `test`
 - loads raw WAV files from `filepath`
-- returns the audio sample together with the binary label
+- returns waveform, sample rate, label, and optional metadata
 
-The raw loader has been verified on the saved split manifest. Deterministic preprocessing such as spectrogram or log-mel conversion is the next pipeline step. In the current dataset setup, raw samples are multichannel audio.
+The raw loader has been verified on the saved split manifest. In the current dataset setup, raw samples are multichannel audio.
+
+Baseline deterministic preprocessing is implemented through dataset transforms and reusable feature utilities under `src/features/`. The current baseline preprocessing pipeline:
+
+- validates the expected sample rate of `16000`
+- averages the multichannel waveform to mono
+- converts the mono waveform to a log-mel spectrogram
+- returns a model-ready tensor on the fly during dataset loading
+
+This keeps raw loading and preprocessing modular while preserving a simple baseline pipeline.
 
 
 ### Train a model
@@ -253,11 +268,12 @@ bash scripts/reproduce_report.sh
 
 ## Baseline Approach
 
-* Audio → Spectrogram / Log-Mel features
+* Raw multichannel audio → mono averaging → log-mel spectrogram
+* On-the-fly deterministic preprocessing through dataset transforms
 * CNN-based classifier
 * Binary classification (normal vs abnormal)
 * Validation-based checkpointing
-
+s
 ---
 
 ## Experiments
