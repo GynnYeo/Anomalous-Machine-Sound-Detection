@@ -1179,3 +1179,178 @@ This is an important stage because it helps determine whether the chosen baselin
 Only after this baseline comparison is complete does it make sense to move on to larger experimental changes such as augmentation, stronger architectures, threshold tuning, or multi-machine training.
 
 ---
+
+## Multi-Machine Baseline Run and Result Interpretation
+
+After completing the initial single-machine baseline, the same baseline pipeline was extended to an **all-machine** experiment covering:
+
+- fan
+- pump
+- slider
+- valve
+
+The purpose of this run was not to redesign the model, preprocessing, or training setup. Instead, the aim was to test whether the same baseline pipeline could still perform well when trained and evaluated on a broader scope of the dataset.
+
+### Why the all-machine run was important
+
+The earlier single-machine baseline was useful as a first reference point, but it only showed that the pipeline worked on one selected subset. A stronger baseline should also be tested on a wider problem scope.
+
+The all-machine run was therefore important for two reasons:
+
+1. it checks whether the baseline remains effective when the dataset includes multiple machine types rather than just one
+2. it provides a stronger reference point for future experiments, since later methods can be compared against both single-machine and all-machine baseline performance
+
+This step also helps distinguish between two possibilities:
+
+- the baseline only works well on a narrow subset such as `fan`
+- the baseline captures more general patterns that remain useful across the broader dataset
+
+### Split design used for the all-machine baseline
+
+Because the all-machine result appeared very strong, an important follow-up question was whether the result could be caused by accidental train/validation/test leakage.
+
+To investigate this, the split generation logic for the all-machine scope was reviewed more carefully.
+
+The all-machine split was not created by pooling all files together and performing one global file-level random split. Instead, the split logic first applies the group-based split **within each machine type separately**, and only then concatenates the machine-specific split results into one combined manifest.
+
+This means that:
+
+- `fan` groups are split within `fan`
+- `pump` groups are split within `pump`
+- `slider` groups are split within `slider`
+- `valve` groups are split within `valve`
+
+before the final all-machine manifest is assembled.
+
+This is an important sanity check because it means the train/validation/test assignments are still controlled at the group level rather than being mixed arbitrarily across the full dataset.
+
+For the all-machine scope, the effective group identity is equivalent to:
+
+`group = (machine_type, machine_id, snr_db)`
+
+This is because each machine type is split separately and the final combined manifest prefixes group IDs with the machine name. As a result, groups remain distinct even when machine IDs and SNR values are similar across machine types.
+
+### Observed split summary for the all-machine baseline
+
+The saved all-machine split summary was:
+
+- total files: `54057`
+- train files: `36038`
+- validation files: `8903`
+- test files: `9116`
+
+Class counts per split were:
+
+- train: `abnormal=6600`, `normal=29438`
+- validation: `abnormal=1529`, `normal=7374`
+- test: `abnormal=1771`, `normal=7345`
+
+Class proportions per split were:
+
+- train: `abnormal=0.183`, `normal=0.817`
+- validation: `abnormal=0.172`, `normal=0.828`
+- test: `abnormal=0.194`, `normal=0.806`
+
+Number of groups per split were:
+
+- train: `32`
+- validation: `8`
+- test: `8`
+
+These counts are consistent with the intended group-based split design. Each machine type contributes its own set of group units, and the final combined all-machine split preserves those assignments.
+
+### Why the result initially seemed suspicious
+
+The all-machine baseline produced very strong evaluation metrics, which made it reasonable to question whether the result was too good to be true.
+
+The main concerns were:
+
+- possible train/validation/test leakage
+- possible metric or evaluation bugs
+- overfitting
+- the possibility that the combined all-machine scope might still be easier than expected because machine sounds within each type remain highly structured
+
+These concerns were worth taking seriously, because unusually strong results are only meaningful if the evaluation procedure is valid.
+
+### All-machine baseline training behavior
+
+The all-machine training history showed steady improvement over epochs rather than an obviously broken pattern.
+
+The best validation loss was reached at epoch 9, followed by a slight worsening at epoch 10. This is a normal training pattern and is consistent with mild end-of-training overfitting rather than a catastrophic bug.
+
+This matters because if the split or metric computation had been fundamentally wrong, one might expect much more extreme or suspicious behavior, such as unrealistically perfect validation results or almost immediate convergence to near-zero loss. That was not observed here.
+
+### All-machine baseline test results
+
+Using the saved best checkpoint, the all-machine baseline test metrics were:
+
+- test loss: `0.0636`
+- accuracy: `0.9763`
+- precision: `0.9887`
+- recall: `0.8882`
+- F1 score: `0.9358`
+- ROC-AUC: `0.9952`
+
+The confusion matrix was:
+
+- true negatives: `7327`
+- false positives: `18`
+- false negatives: `198`
+- true positives: `1573`
+
+These are very strong results. However, they are not perfectly clean to the point of being automatically suspicious. The model still makes mistakes, especially by missing some abnormal samples. This is an important detail because it suggests that the model is not simply memorizing or producing an unrealistically perfect score.
+
+### Interpreting the all-machine result
+
+Based on the split logic review, training history, and evaluation outputs, the all-machine result appears to be **strong but plausible** under the current split design.
+
+Several observations support this interpretation.
+
+First, the split logic itself appears sound. The all-machine manifest is constructed from machine-type-specific group splits rather than from a naive pooled random split, which reduces the chance of accidental leakage across train, validation, and test sets.
+
+Second, the metric pattern is internally consistent. Precision is extremely high, while recall is somewhat lower. This is similar to the earlier single-machine result and suggests a model that is somewhat conservative in predicting abnormalities. This is a believable pattern rather than an obviously broken one.
+
+Third, the confusion matrix is strong but not unrealistically perfect. The presence of both false positives and false negatives suggests that the model is performing very well without being trivial.
+
+### Important limitation of the current split design
+
+Although the all-machine result appears valid for the current setup, it is still important to interpret it in context.
+
+The current split design is **leakage-aware**, but it is not the strictest possible evaluation setting. The grouping rule keeps together files from the same machine type, machine ID, and SNR condition, but it does not completely hide an entire machine ID across all conditions in the same way that a stricter leave-one-machine-ID-out style split would.
+
+This means the current result should be interpreted as:
+
+- a strong result for the chosen group-based split design
+
+rather than as proof that the model will necessarily generalize to the harshest possible unseen-machine scenario.
+
+This is not a flaw in the current baseline. It simply means that the baseline result should be described accurately according to the evaluation setting used.
+
+### Conclusion from the all-machine baseline
+
+The current evidence suggests that the baseline CNN is genuinely performing well on the task **as currently defined**.
+
+The result does not appear to be caused by an obvious split bug or by train/validation/test overflow. Instead, it appears that the model is learning useful discriminative patterns between normal and abnormal machine sounds under the present group-based evaluation setup.
+
+This makes the all-machine baseline a strong and useful reference point for the next stage of the project.
+
+### What this means for the next stage
+
+Since the all-machine baseline now appears valid and strong, the project can move beyond basic pipeline construction.
+
+The next stage should focus on:
+
+- comparing final results across single-machine and all-machine baselines
+- identifying baseline weaknesses, especially missed abnormal samples
+- selecting controlled next experiments such as:
+  - augmentation
+  - alternative preprocessing
+  - threshold tuning
+  - class imbalance handling
+  - stronger architectures
+  - reconstruction-based methods such as autoencoders
+
+This means the project is now shifting from **building the baseline pipeline** toward **using the baseline as a reference for experimentation**.
+
+
+---
