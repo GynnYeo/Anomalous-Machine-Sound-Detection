@@ -498,3 +498,355 @@ In summary, the baseline preprocessing pipeline was designed to stay simple, det
 The mono waveform was then converted into a log-mel spectrogram by applying the STFT, forming a power spectrogram, projecting it through a mel filterbank, and finally applying a logarithmic transform. This produced a compact and model-friendly time-frequency representation that serves as the standard baseline input for the next stage of the project.
 
 ---
+
+## Baseline Model and Training Pipeline
+
+After defining the saved split strategy, implementing the dataset loader, and verifying the baseline preprocessing pipeline, the next stage of the project was to build the first trainable baseline model and connect it to a full training loop.
+
+At this point, the objective was not to build the strongest possible system immediately. Instead, the goal was to establish a **simple, stable, and reproducible baseline training pipeline** that could later serve as a reference point for future experiments. This meant choosing a model that was easy to implement, compatible with the current preprocessing output, and straightforward to train and debug.
+
+### Why a CNN was chosen for the baseline
+
+The baseline preprocessing pipeline converts each audio sample into a **log-mel spectrogram**. This representation is naturally structured as a 2D time-frequency map, where one axis corresponds to frequency bins and the other corresponds to time frames. Because of this, a Convolutional Neural Network (CNN) is a practical first choice.
+
+A CNN was chosen for several reasons.
+
+First, CNNs are well suited to learning local patterns in structured 2D inputs. In a log-mel spectrogram, meaningful information often appears as local time-frequency structures rather than as isolated individual values. Convolutional filters can learn these local patterns more naturally than a fully connected model.
+
+Second, CNNs are a common and reliable baseline for audio classification tasks using spectrogram-like inputs. Since one of the main goals of this project is to build a stable experimental foundation, using a standard and interpretable model architecture makes the results easier to understand and compare later.
+
+Third, a CNN provides a good balance between simplicity and representational power. It is more structured than flattening the spectrogram into a single vector and feeding it into a multilayer perceptron, but it is still much simpler than immediately moving to larger or pretrained models. This matches the project principle of starting with a practical baseline before introducing more complex methods.
+
+### Why more complex models were not used first
+
+Although stronger architectures may ultimately perform better, they were intentionally deferred at this stage.
+
+The project priorities at this point were:
+
+- establish a working end-to-end pipeline
+- confirm that the split, loading, preprocessing, model, and training stages work together correctly
+- create a baseline result that can later be improved in controlled experiments
+
+Jumping directly to pretrained or more complex architectures would have made it harder to determine whether later performance gains came from the model itself or from unresolved issues elsewhere in the pipeline. For this reason, the first model was kept deliberately modest.
+
+### Baseline model input and output contract
+
+The baseline model was designed to match the output of the preprocessing pipeline directly.
+
+After deterministic preprocessing, each sample is represented as a tensor with shape:
+
+`[1, 64, 313]`
+
+where:
+
+- `1` is the feature channel dimension
+- `64` is the number of mel bins
+- `313` is the number of time frames
+
+When batched by a PyTorch `DataLoader`, the model therefore receives input with shape:
+
+`[batch_size, 1, 64, 313]`
+
+This design keeps the interface between preprocessing and the model clear and consistent.
+
+The task is binary classification with labels:
+
+- `normal -> 0`
+- `abnormal -> 1`
+
+For this reason, the model was designed to output **one logit per sample** rather than two class scores. This means the output shape is:
+
+`[batch_size]`
+
+Using one logit is a natural fit for binary classification and keeps the final classifier head simpler.
+
+### Why one logit was used instead of two class scores
+
+A binary classification model can be implemented in two common ways:
+
+1. output two class scores and use a multiclass loss such as cross-entropy
+2. output one logit and use a binary loss such as binary cross-entropy with logits
+
+For the baseline, the second approach was chosen.
+
+This choice was made because the problem is directly binary, the dataset labels are already encoded as `0` and `1`, and a one-logit output keeps the model head and loss pairing straightforward. It also avoids adding an unnecessary second output unit when only one binary decision is required.
+
+As a result, the training loss for the baseline was set to:
+
+`BCEWithLogitsLoss`
+
+This combines the sigmoid operation and binary cross-entropy into one numerically stable loss function, which is preferable to applying a sigmoid manually inside the model during training.
+
+### Baseline CNN architecture design
+
+The baseline CNN was intentionally kept small and conventional.
+
+Its overall structure follows the pattern:
+
+1. convolutional layers to learn local time-frequency features
+2. nonlinear activation after each convolution
+3. batch normalization for more stable training
+4. dropout for light regularization
+5. max pooling to reduce feature map size
+6. global pooling and fully connected layers for final classification
+
+The model uses three convolutional blocks rather than a very shallow one- or two-layer design. This was chosen as a practical middle ground: the model is still simple, but it has enough depth to learn progressively more abstract features from the log-mel input.
+
+The final classifier head outputs one scalar logit for each sample.
+
+### Why adaptive pooling was used
+
+An important design choice in the baseline CNN was the use of **adaptive average pooling** before the fully connected classifier.
+
+A simpler but more fragile alternative would have been to flatten the final convolutional feature map using a hardcoded size. However, that approach ties the model more tightly to one exact intermediate tensor shape and makes the model more brittle if input dimensions change slightly later.
+
+Adaptive pooling was therefore chosen because it:
+
+- reduces dependence on a hardcoded flatten dimension
+- keeps the classifier head simpler
+- makes the model slightly more robust to changes in the time dimension
+
+This choice improves maintainability without making the baseline architecture significantly more complicated.
+
+### Keeping the model module focused
+
+Another design decision was to keep the model implementation narrowly scoped.
+
+The model module is responsible only for defining:
+
+- network layers
+- forward pass behavior
+- expected input/output tensor structure
+
+It is intentionally not responsible for:
+
+- loss selection
+- optimizer setup
+- training loop logic
+- checkpointing
+- metric computation
+
+These responsibilities belong to the training pipeline instead. Separating them makes the code easier to understand and allows the model to be reused later with different training settings if needed.
+
+## Baseline Training Pipeline
+
+Once the baseline CNN was defined, the next step was to connect it to a minimal but complete training pipeline.
+
+The goal of this stage was to create an end-to-end training process that could:
+
+- load training and validation data from the saved split manifest
+- preprocess each sample on the fly
+- train the baseline model using mini-batches
+- monitor validation performance over time
+- save useful checkpoints
+- record training history for later analysis
+
+As with earlier stages, the design emphasized modularity and reproducibility over premature optimization.
+
+### Why mini-batch training was used
+
+The model was trained using **mini-batch gradient descent** through a PyTorch `DataLoader`.
+
+Mini-batch training was chosen instead of processing one sample at a time because it is the standard and practical approach for neural network training. It improves computational efficiency, especially on accelerators such as GPUs, and provides a more stable gradient estimate than purely single-sample updates.
+
+The `DataLoader` also centralizes responsibilities such as:
+
+- batching samples
+- shuffling the training split
+- iterating through the dataset cleanly across epochs
+
+This makes the training code more organized and avoids manually handling low-level data iteration.
+
+### Separation between training orchestration and epoch logic
+
+The training pipeline was organized so that responsibilities remained clearly separated.
+
+At a high level, the training code was split into:
+
+- **epoch-level routines**, which handle one pass through the data
+- **higher-level orchestration**, which manages the full multi-epoch training run
+
+This separation was useful because the repeated mechanics of one epoch, such as forward pass, loss computation, backward pass, and metric accumulation, are conceptually different from higher-level tasks such as:
+
+- creating datasets and dataloaders
+- selecting the device
+- initializing model, optimizer, and loss
+- saving checkpoints
+- recording history
+- handling resume behavior
+
+Keeping these responsibilities separate made the training code easier to read, easier to test, and easier to extend later.
+
+### Device selection strategy
+
+The training pipeline was designed to run on the best available device in the following priority order:
+
+1. CUDA
+2. MPS
+3. CPU
+
+This allows the same training code to run on different hardware environments without changing the core logic. CUDA support is preferred when an NVIDIA GPU is available, MPS is used as a fallback on Apple Silicon systems that support it, and CPU remains the final default.
+
+This design improves portability while preserving a single consistent training workflow.
+
+### Why BCEWithLogitsLoss was used
+
+Because the model outputs one logit per sample for binary classification, the training loss was chosen to be:
+
+`BCEWithLogitsLoss`
+
+This was preferred over applying a sigmoid manually inside the model because it is the standard numerically stable implementation for binary logistic output training.
+
+This choice also reinforces a clean separation of roles:
+
+- the model outputs raw logits
+- the loss function handles the appropriate binary classification objective
+- sigmoid is only used outside the model when probabilities or thresholded predictions are needed for metrics
+
+### Why Adam was chosen as the optimizer
+
+For the first baseline, the optimizer was chosen to be **Adam**.
+
+Adam was selected because it is a practical and reliable default for baseline deep learning experiments. It typically converges more easily than plain stochastic gradient descent in early-stage projects and usually requires less manual tuning to produce a working baseline.
+
+At this stage, the main objective was not to optimize the training procedure exhaustively, but to get a stable baseline running with a widely accepted optimizer choice. Adam fits that requirement well.
+
+### Training and validation each epoch
+
+The training process was organized around epochs. For each epoch, the pipeline performs two separate phases:
+
+1. **training phase**
+2. **validation phase**
+
+During the training phase, the model is placed in training mode, mini-batches are loaded from the training set, logits are computed, loss is evaluated, gradients are backpropagated, and the optimizer updates the parameters.
+
+During the validation phase, the model is placed in evaluation mode, gradients are disabled, and the model is evaluated on the validation set without updating parameters.
+
+This separation is important because the validation set is used to monitor generalization performance rather than optimize the model directly.
+
+### Why validation was used every epoch
+
+Validation was run at the end of every epoch rather than every few epochs.
+
+This choice was made because validation provides direct feedback on how the model is performing on held-out data as training progresses. If validation is performed too infrequently, the best-performing model state may be missed.
+
+Running validation every epoch makes it possible to:
+
+- track validation loss over time
+- compare training and validation behavior for signs of overfitting
+- save the best checkpoint at the exact epoch where validation performance is strongest
+
+For a baseline training loop, this is a practical and standard schedule.
+
+### Monitoring overfitting
+
+One reason for including validation every epoch was to monitor possible overfitting.
+
+Overfitting is not identified merely by a low training loss. Instead, it becomes visible when training performance continues to improve while validation performance stops improving or begins to worsen.
+
+For this reason, the training pipeline records at least:
+
+- training loss
+- validation loss
+- validation accuracy
+
+This allows the baseline run to be interpreted more meaningfully than if only training loss were observed.
+
+### Why validation loss was used for checkpoint selection
+
+The main checkpoint selection criterion for the baseline was **best validation loss**.
+
+This was chosen over more complex checkpoint rules because validation loss is:
+
+- directly tied to the optimization objective
+- smooth and continuous
+- less dependent on an explicit probability threshold than classification accuracy
+
+For a first baseline, this makes validation loss a cleaner and more stable checkpoint criterion than metrics such as accuracy, F1 score, or ROC-AUC.
+
+This does not mean those metrics are unimportant. Rather, it means that validation loss was treated as the primary checkpoint decision signal in the initial training pipeline.
+
+### Two checkpoint purposes: best and last
+
+Checkpointing was included in the baseline pipeline for two different reasons.
+
+#### Best checkpoint
+
+The first purpose is to preserve the best-performing model according to validation loss.
+
+Whenever validation loss improves, the current model state is saved as the **best checkpoint**. This checkpoint is intended for later evaluation on the test set and for reporting the baseline result.
+
+#### Last checkpoint
+
+The second purpose is recovery and resume capability.
+
+At the end of every epoch, the current training state is saved as the **last checkpoint**. This ensures that if training is interrupted unexpectedly, it can be resumed without restarting from scratch.
+
+This distinction is important because the best checkpoint and the most recent checkpoint are not necessarily the same. A model can continue training after its best validation epoch, which means the latest state may not be the best one.
+
+### What was stored in checkpoints
+
+To support meaningful checkpointing, the saved training state includes at least:
+
+- model parameters
+- optimizer state
+- current epoch
+- best validation loss so far
+
+Including optimizer state is especially important for resume functionality, because it allows adaptive optimizers such as Adam to continue from their current internal state rather than restarting as if training had just begun.
+
+### Training history and timing
+
+In addition to checkpoints, the training pipeline records a lightweight history over time.
+
+This history includes at least:
+
+- epoch number
+- training loss
+- validation loss
+- validation accuracy
+- epoch duration
+- total training time
+
+Recording this history serves several purposes.
+
+First, it makes later analysis easier, because the behavior of the model over time can be reviewed after training ends.
+
+Second, it supports plotting learning curves such as training loss and validation loss across epochs.
+
+Third, it improves experimental reproducibility by preserving more than just a final checkpoint. The run can be interpreted in terms of how it evolved, not only where it ended.
+
+### Why loss curves are useful
+
+The loss curve was treated as an important diagnostic artifact rather than a cosmetic extra.
+
+A training-only loss curve can be misleading because it does not show how well the model generalizes. By recording both training loss and validation loss over time, it becomes easier to detect patterns such as:
+
+- healthy joint improvement
+- underfitting
+- overfitting
+- unstable optimization
+
+For this reason, the training history was designed so that these curves can be plotted later even if plotting is not the first implementation priority.
+
+### Reproducibility during training
+
+Reproducibility remained an important principle during the training stage as well.
+
+To support more consistent runs, the training pipeline includes seed control so that random number generation for model initialization and other stochastic components is more controlled. This does not guarantee bitwise-identical behavior across every environment, but it does improve consistency and aligns with the overall project goal of producing reproducible experiments.
+
+### Why final test evaluation was separated from training
+
+Although validation is part of the training pipeline, final test evaluation was intentionally treated as a separate later stage.
+
+This separation was chosen because the test set should not guide training decisions. The validation set exists for monitoring and checkpoint selection during model development, while the test set is intended for the final held-out assessment of the chosen model.
+
+Keeping the final evaluation step separate helps preserve the integrity of the test set and makes the experimental procedure easier to explain.
+
+### Summary
+
+In summary, the baseline training stage was designed to transform the previously prepared data pipeline into a complete learning workflow. A CNN was chosen because it is a practical and well-matched baseline model for 2D log-mel spectrogram inputs. The model was intentionally kept simple, with one-logit binary output and a standard convolutional architecture, in order to prioritize clarity, debuggability, and reproducibility.
+
+The training pipeline then connected this model to mini-batch dataloading, device-aware training, `BCEWithLogitsLoss`, the Adam optimizer, epoch-level training and validation, validation-based checkpointing, resume support, and saved training history. Together, these decisions created a baseline training framework that is sufficiently complete to support initial experiments while remaining modular enough for future extensions.
+
+---

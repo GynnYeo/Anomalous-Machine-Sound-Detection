@@ -10,6 +10,7 @@ import torchaudio
 from torch.utils.data import Dataset
 
 from src.data.split import SPLIT_COLUMNS, VALID_LABELS, VALID_SPLITS, load_split_manifest
+from src.utils.io import resolve_path
 
 LABEL_TO_INDEX: Final[dict[str, int]] = {
     "normal": 0,
@@ -62,7 +63,7 @@ class MIMIIDataset(Dataset[dict[str, Any]]):
     def __getitem__(self, index: int) -> dict[str, Any]:
         """Load one WAV file and return a sample dictionary."""
         record = self._records[index]
-        audio_path = Path(record["filepath"]).expanduser().resolve()
+        audio_path = resolve_path(record["filepath"])
 
         try:
             waveform, sample_rate = torchaudio.load(audio_path)
@@ -102,7 +103,7 @@ class MIMIIDataset(Dataset[dict[str, Any]]):
         missing_files = [
             record["filepath"]
             for record in self._records
-            if not Path(record["filepath"]).expanduser().resolve().is_file()
+            if not resolve_path(record["filepath"]).is_file()
         ]
         if missing_files:
             preview = ", ".join(missing_files[:5])

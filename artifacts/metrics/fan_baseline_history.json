@@ -1,0 +1,86 @@
+{
+  "run_name": "fan_baseline",
+  "manifest_path": "data/splits/fan_split_seed42.csv",
+  "device": "mps",
+  "batch_size": 16,
+  "learning_rate": 0.001,
+  "seed": 42,
+  "epochs": [
+    {
+      "epoch": 1,
+      "train_loss": 0.4672395830648439,
+      "val_loss": 0.3069799888063138,
+      "val_accuracy": 0.856779352962559,
+      "epoch_time_seconds": 659.0526996669942
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.3468163397022196,
+      "val_loss": 0.350241419538697,
+      "val_accuracy": 0.8538713195201745,
+      "epoch_time_seconds": 585.4980592500069
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.29169264669890876,
+      "val_loss": 0.31475810289060646,
+      "val_accuracy": 0.88113413304253,
+      "epoch_time_seconds": 407.09787287499057
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.2605254716486544,
+      "val_loss": 0.2532155921573737,
+      "val_accuracy": 0.9116684841875682,
+      "epoch_time_seconds": 483.2863492909819
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.24314504236251383,
+      "val_loss": 0.27912119922668005,
+      "val_accuracy": 0.8974918211559433,
+      "epoch_time_seconds": 484.01606795797125
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.21711836759571557,
+      "val_loss": 0.25374149800403634,
+      "val_accuracy": 0.9196655761541258,
+      "epoch_time_seconds": 445.09590445802314
+    },
+    {
+      "epoch": 7,
+      "train_loss": 0.23055611162840783,
+      "val_loss": 0.15552560937350027,
+      "val_accuracy": 0.9501999272991639,
+      "epoch_time_seconds": 477.4007042499725
+    },
+    {
+      "epoch": 8,
+      "train_loss": 0.21642439899680851,
+      "val_loss": 0.230422852107113,
+      "val_accuracy": 0.9120319883678663,
+      "epoch_time_seconds": 428.96480929199606
+    },
+    {
+      "epoch": 9,
+      "train_loss": 0.20547737976720742,
+      "val_loss": 0.1261491541163516,
+      "val_accuracy": 0.9589240276263177,
+      "epoch_time_seconds": 398.14790412498405
+    },
+    {
+      "epoch": 10,
+      "train_loss": 0.19571924846787173,
+      "val_loss": 0.12669737810679854,
+      "val_accuracy": 0.9516539440203562,
+      "epoch_time_seconds": 468.960532624973
+    }
+  ],
+  "completed_epochs": 10,
+  "best_epoch": 9,
+  "best_val_loss": 0.1261491541163516,
+  "total_training_time_seconds": 3186.044643833011,
+  "best_checkpoint_path": "artifacts/checkpoints/fan_baseline_best.pt",
+  "last_checkpoint_path": "artifacts/checkpoints/fan_baseline_last.pt"
+}

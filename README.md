@@ -206,21 +206,26 @@ The script also prints a summary after splitting, including:
 * class proportions per split
 * number of groups per split
 
+
 ### Current pipeline status
 
-After creating the split manifest, the baseline data pipeline now includes:
+The baseline pipeline currently includes:
 
 1. saved split manifest loading
 2. raw WAV loading through `src/data/dataset.py`
-3. deterministic preprocessing through dataset transforms
+3. deterministic on-the-fly preprocessing through dataset transforms
+4. baseline CNN training through the standard training pipeline
 
-The dataset loader:
-- reads the saved split CSV
-- filters rows by `train`, `val`, or `test`
-- loads raw WAV files from `filepath`
-- returns the raw audio sample together with the binary label
+The current baseline uses:
 
-Baseline preprocessing is applied on the fly through a dataset transform. In the current baseline, raw multichannel audio is averaged to mono and converted to a log-mel spectrogram.
+- raw multichannel audio averaged to mono
+- mono waveform converted to a log-mel spectrogram
+- model-ready input shape `[1, 64, 313]` per sample
+- a CNN classifier that outputs one logit per sample for binary classification
+- `BCEWithLogitsLoss` for training
+- validation-based checkpointing with both:
+  - a `best` checkpoint for evaluation
+  - a `last` checkpoint for training resume/recovery
 
 Train-time augmentation is not part of the current baseline and can be added later through separate dataset transforms.
 
@@ -247,10 +252,30 @@ This keeps raw loading and preprocessing modular while preserving a simple basel
 
 
 ### Train a model
-<!-- 
+
+The baseline training pipeline is driven by `scripts/train.py`.
+
+Example:
+
 ```bash
-python src/training/train.py --config configs/baseline.yaml
-``` -->
+python scripts/train.py \
+  --manifest-path data/splits/fan_split_seed42.csv \
+  --epochs 10 \
+  --batch-size 16 \
+  --learning-rate 1e-3 \
+  --run-name baseline_fan
+```
+
+This will:
+- load the saved train and validation splits from the manifest
+- apply the baseline log-mel preprocessing on the fly
+- train the baseline CNN using mini-batches
+- run validation every epoch
+- save:
+  - a `best` checkpoint when validation loss improves
+  - a `last` checkpoint every epoch for resume/recovery
+- save training history for later plotting of loss curves
+
 
 ### Evaluate a trained model
 <!-- 
@@ -270,10 +295,13 @@ bash scripts/reproduce_report.sh
 
 * Raw multichannel audio → mono averaging → log-mel spectrogram
 * On-the-fly deterministic preprocessing through dataset transforms
-* CNN-based classifier
-* Binary classification (normal vs abnormal)
-* Validation-based checkpointing
-s
+* CNN-based binary classifier
+* One-logit output for `normal` vs `abnormal`
+* Training with `BCEWithLogitsLoss`
+* Validation every epoch
+* Checkpointing with both `best` and `last` checkpoints
+
+
 ---
 
 ## Experiments

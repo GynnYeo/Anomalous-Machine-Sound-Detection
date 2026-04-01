@@ -7,6 +7,8 @@ from typing import Final
 
 import pandas as pd
 
+from src.utils.io import PROJECT_ROOT, to_portable_path
+
 INDEX_COLUMNS: Final[list[str]] = [
     "filepath",
     "machine_type",
@@ -56,7 +58,7 @@ def _parse_audio_path(audio_path: Path, data_root: Path) -> dict[str, str]:
         )
 
     return {
-        "filepath": str(audio_path.resolve()),
+        "filepath": to_portable_path(audio_path, base_dir=PROJECT_ROOT),
         "machine_type": machine_type,
         "snr_db": snr_db,
         "machine_id": machine_id,
