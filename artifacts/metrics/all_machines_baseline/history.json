@@ -1,0 +1,88 @@
+{
+  "run_name": "all_machines_baseline",
+  "manifest_path": "data/splits/all_machines_split_seed42.csv",
+  "device": "cuda",
+  "batch_size": 16,
+  "learning_rate": 0.001,
+  "seed": 42,
+  "epochs": [
+    {
+      "epoch": 1,
+      "train_loss": 0.42395055874569365,
+      "val_loss": 0.3440120369417706,
+      "val_accuracy": 0.8620689655172413,
+      "epoch_time_seconds": 365.2502667199997
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.3538773534624629,
+      "val_loss": 0.32977316449636124,
+      "val_accuracy": 0.8561159159833764,
+      "epoch_time_seconds": 371.9049277580016
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.2974064551875623,
+      "val_loss": 0.22542013529251698,
+      "val_accuracy": 0.9096933617881613,
+      "epoch_time_seconds": 369.37711907300036
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.2505277747950852,
+      "val_loss": 0.31269273459949526,
+      "val_accuracy": 0.8690329102549702,
+      "epoch_time_seconds": 369.69263087999934
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.22158184145258922,
+      "val_loss": 0.19895303429264805,
+      "val_accuracy": 0.917106593283163,
+      "epoch_time_seconds": 366.2261938749998
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.20171669280572355,
+      "val_loss": 0.12291537563180377,
+      "val_accuracy": 0.9493429181174885,
+      "epoch_time_seconds": 367.5608381330003
+    },
+    {
+      "epoch": 7,
+      "train_loss": 0.19004548469464186,
+      "val_loss": 0.1084089611841594,
+      "val_accuracy": 0.9560822194765809,
+      "epoch_time_seconds": 369.63812834300006
+    },
+    {
+      "epoch": 8,
+      "train_loss": 0.17500833957739031,
+      "val_loss": 0.12058105213977531,
+      "val_accuracy": 0.9538357856902168,
+      "epoch_time_seconds": 376.1908589169998
+    },
+    {
+      "epoch": 9,
+      "train_loss": 0.16532286411877264,
+      "val_loss": 0.08950619736434831,
+      "val_accuracy": 0.9645063461754465,
+      "epoch_time_seconds": 370.7847669800012
+    },
+    {
+      "epoch": 10,
+      "train_loss": 0.16315106556834202,
+      "val_loss": 0.11471022236041642,
+      "val_accuracy": 0.9595641918454454,
+      "epoch_time_seconds": 371.161328690001
+    }
+  ],
+  "completed_epochs": 10,
+  "best_epoch": 9,
+  "best_val_loss": 0.08950619736434831,
+  "total_training_time_seconds": 3697.8990018820004,
+  "best_checkpoint_path": "artifacts/checkpoints/all_machines_baseline/best.pt",
+  "last_checkpoint_path": "artifacts/checkpoints/all_machines_baseline/last.pt",
+  "history_path": "artifacts/metrics/all_machines_baseline/history.json",
+  "run_config_path": "artifacts/metrics/all_machines_baseline/run_config.json"
+}

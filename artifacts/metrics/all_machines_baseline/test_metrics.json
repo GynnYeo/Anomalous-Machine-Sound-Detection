@@ -1,0 +1,25 @@
+{
+  "run_name": "all_machines_baseline",
+  "manifest_path": "data/splits/all_machines_split_seed42.csv",
+  "checkpoint_path": "artifacts/checkpoints/all_machines_baseline/best.pt",
+  "split": "test",
+  "device": "cuda",
+  "num_samples": 9116,
+  "loss": 0.06355922784159894,
+  "accuracy": 0.976305397103993,
+  "precision": 0.988686360779384,
+  "recall": 0.8881987577639752,
+  "f1": 0.9357525282569898,
+  "confusion_matrix": [
+    [
+      7327,
+      18
+    ],
+    [
+      198,
+      1573
+    ]
+  ],
+  "metrics_path": "artifacts/metrics/all_machines_baseline/test_metrics.json",
+  "roc_auc": 0.9952009514148799
+}
