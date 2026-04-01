@@ -24,6 +24,12 @@ class BaselineLogMelTransform:
         f_max: float = 8000.0,
     ) -> None:
         self.sample_rate = sample_rate
+        self.n_fft = n_fft
+        self.win_length = win_length
+        self.hop_length = hop_length
+        self.n_mels = n_mels
+        self.f_min = f_min
+        self.f_max = f_max
         self.feature_extractor = LogMelSpectrogramExtractor(
             sample_rate=sample_rate,
             n_fft=n_fft,

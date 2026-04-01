@@ -17,6 +17,7 @@ from src.training.callbacks import (
     load_history,
     save_checkpoint,
     save_history,
+    save_json,
 )
 from src.training.losses import build_baseline_loss
 from src.training.trainer import train_one_epoch, validate_one_epoch
@@ -45,7 +46,7 @@ def run_training(
     history_dir: str | Path = "artifacts/metrics",
     resume_from: str | Path | None = None,
 ) -> dict[str, Any]:
-    """Run the baseline training loop and save checkpoints plus history."""
+    """Run the baseline training loop and save artifacts under run-specific folders."""
     if epochs < 1:
         raise ValueError(f"epochs must be at least 1, got {epochs}.")
     if batch_size < 1:
@@ -94,9 +95,12 @@ def run_training(
 
     checkpoint_root = Path(checkpoint_dir).expanduser().resolve()
     history_root = Path(history_dir).expanduser().resolve()
-    best_checkpoint_path = checkpoint_root / f"{run_name}_best.pt"
-    last_checkpoint_path = checkpoint_root / f"{run_name}_last.pt"
-    history_path = history_root / f"{run_name}_history.json"
+    checkpoint_run_dir = checkpoint_root / run_name
+    history_run_dir = history_root / run_name
+    best_checkpoint_path = checkpoint_run_dir / "best.pt"
+    last_checkpoint_path = checkpoint_run_dir / "last.pt"
+    history_path = history_run_dir / "history.json"
+    run_config_path = history_run_dir / "run_config.json"
 
     history = _build_initial_history(
         run_name=run_name,
@@ -122,6 +126,26 @@ def run_training(
 
     history["best_checkpoint_path"] = to_portable_path(best_checkpoint_path)
     history["last_checkpoint_path"] = to_portable_path(last_checkpoint_path)
+    history["history_path"] = to_portable_path(history_path)
+    history["run_config_path"] = to_portable_path(run_config_path)
+
+    run_config = _build_run_config(
+        run_name=run_name,
+        manifest_path=manifest_path,
+        device=device,
+        batch_size=batch_size,
+        learning_rate=learning_rate,
+        seed=seed,
+        epochs_requested=epochs,
+        num_workers=num_workers,
+        model=model,
+        criterion=criterion,
+        optimizer=optimizer,
+        transform=transform,
+        checkpoint_dir=checkpoint_run_dir,
+        history_dir=history_run_dir,
+    )
+    save_json(run_config, run_config_path)
 
     print(
         f"Starting training on {device.type} | "
@@ -226,4 +250,48 @@ def _build_initial_history(
         "best_epoch": None,
         "best_val_loss": None,
         "total_training_time_seconds": None,
+    }
+
+
+def _build_run_config(
+    run_name: str,
+    manifest_path: str | Path,
+    device: torch.device,
+    batch_size: int,
+    learning_rate: float,
+    seed: int,
+    epochs_requested: int,
+    num_workers: int,
+    model: torch.nn.Module,
+    criterion: torch.nn.Module,
+    optimizer: torch.optim.Optimizer,
+    transform: BaselineLogMelTransform,
+    checkpoint_dir: Path,
+    history_dir: Path,
+) -> dict[str, Any]:
+    """Build a small JSON-serializable run configuration record."""
+    return {
+        "run_name": run_name,
+        "manifest_path": to_portable_path(manifest_path),
+        "device": device.type,
+        "batch_size": batch_size,
+        "learning_rate": learning_rate,
+        "seed": seed,
+        "epochs_requested": epochs_requested,
+        "num_workers": num_workers,
+        "model_name": model.__class__.__name__,
+        "loss_name": criterion.__class__.__name__,
+        "optimizer_name": optimizer.__class__.__name__,
+        "preprocessing_name": transform.__class__.__name__,
+        "preprocessing_parameters": {
+            "sample_rate": transform.sample_rate,
+            "n_fft": transform.n_fft,
+            "win_length": transform.win_length,
+            "hop_length": transform.hop_length,
+            "n_mels": transform.n_mels,
+            "f_min": transform.f_min,
+            "f_max": transform.f_max,
+        },
+        "checkpoint_dir": to_portable_path(checkpoint_dir),
+        "history_dir": to_portable_path(history_dir),
     }

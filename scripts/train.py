@@ -58,19 +58,19 @@ def build_parser() -> argparse.ArgumentParser:
         "--run-name",
         type=str,
         default="baseline_cnn",
-        help="Prefix used for checkpoint and history filenames.",
+        help="Run folder name used under checkpoint and history parent directories.",
     )
     parser.add_argument(
         "--checkpoint-dir",
         type=Path,
         default=PROJECT_ROOT / "artifacts" / "checkpoints",
-        help="Directory for best/last checkpoints.",
+        help="Parent directory for run-specific checkpoint folders.",
     )
     parser.add_argument(
         "--history-dir",
         type=Path,
         default=PROJECT_ROOT / "artifacts" / "metrics",
-        help="Directory for saved training history JSON.",
+        help="Parent directory for run-specific history folders.",
     )
     parser.add_argument(
         "--resume-from",

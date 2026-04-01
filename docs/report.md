@@ -850,3 +850,332 @@ In summary, the baseline training stage was designed to transform the previously
 The training pipeline then connected this model to mini-batch dataloading, device-aware training, `BCEWithLogitsLoss`, the Adam optimizer, epoch-level training and validation, validation-based checkpointing, resume support, and saved training history. Together, these decisions created a baseline training framework that is sufficiently complete to support initial experiments while remaining modular enough for future extensions.
 
 ---
+
+## Baseline Evaluation Pipeline
+
+After confirming that the baseline training pipeline was working correctly, the next step was to implement a separate evaluation stage. The purpose of this stage was to assess how well the trained model generalizes to **held-out test data** that was not used for gradient updates or checkpoint selection.
+
+At this point in the project, the main goal was not to build a large evaluation framework. Instead, the aim was to create a **simple, stable, and reproducible test-time evaluation pipeline** that fits cleanly into the existing modular structure.
+
+### Why evaluation was kept separate from training
+
+Although validation is already performed during training, final evaluation was intentionally implemented as a separate step.
+
+This distinction is important because validation and test evaluation serve different purposes:
+
+- **validation** is used during training to monitor learning progress and select checkpoints
+- **test evaluation** is used after training to estimate generalization on fully held-out data
+
+If the test set is used repeatedly during model development, it stops serving as a clean final benchmark. For this reason, the project keeps the test split separate and uses it only after training has already selected a model.
+
+This design also keeps responsibilities cleaner:
+
+- the training pipeline handles optimization and validation
+- the evaluation pipeline handles final test inference and metric computation
+
+### Why the best checkpoint was used instead of the last checkpoint
+
+A key design decision in the evaluation stage was to evaluate the **best checkpoint**, not the last checkpoint.
+
+During training, two checkpoint types are saved:
+
+- **best checkpoint**, saved whenever validation loss improves
+- **last checkpoint**, saved every epoch for resume/recovery
+
+These two checkpoints serve different purposes. The last checkpoint is useful if training is interrupted and needs to continue later, but it is not necessarily the strongest-performing model. A later epoch may have a lower training loss while already beginning to overfit relative to validation performance.
+
+For this reason, the final evaluation stage uses the checkpoint selected by **lowest validation loss**. This keeps the evaluation aligned with the model selection rule already defined during training.
+
+### Reusing the same baseline data pipeline
+
+The evaluation stage was intentionally built on top of the same dataset and preprocessing pipeline already used for training.
+
+The evaluation script:
+
+1. loads the saved split manifest
+2. creates the dataset for the `test` split
+3. applies the same deterministic baseline preprocessing transform
+4. loads the saved best checkpoint
+5. runs inference across the test set without updating model parameters
+
+This was an important design choice because it ensures consistency between training and evaluation. The only difference is the selected data split and the fact that gradients are disabled.
+
+By reusing the same dataset loader and preprocessing transform, the project avoids creating a separate test-only preprocessing path that could silently drift away from the training setup.
+
+### Test-time inference behavior
+
+During evaluation, the model is placed in evaluation mode and inference is run under `torch.no_grad()`.
+
+This serves two purposes:
+
+- it ensures layers such as dropout behave appropriately for inference
+- it avoids storing gradients unnecessarily, which reduces memory use and makes evaluation more efficient
+
+The model outputs one logit per sample, consistent with the binary classification design used during training.
+
+### Converting logits into predictions
+
+Because the model outputs a single logit for each sample, an explicit conversion step is needed during evaluation.
+
+The process is:
+
+1. apply the sigmoid function to convert the logit into a probability
+2. threshold the probability at `0.5`
+3. assign:
+   - `0` for `normal`
+   - `1` for `abnormal`
+
+This decision rule was kept intentionally simple for the baseline. No threshold tuning was performed at this stage, because the first goal was to establish a default and reproducible evaluation procedure rather than optimize operating thresholds.
+
+### Why these baseline metrics were chosen
+
+The first baseline evaluation was designed to compute a compact but useful set of binary classification metrics. The chosen metrics were:
+
+- test loss
+- accuracy
+- precision
+- recall
+- F1 score
+- confusion matrix
+- ROC-AUC
+
+These metrics were chosen because each one provides a slightly different view of model behavior.
+
+#### Test loss
+
+Test loss provides a threshold-independent view of how well the model’s outputs align with the target labels under the same loss function used during training. It is useful as a direct continuation of the training objective.
+
+#### Accuracy
+
+Accuracy gives a simple overall summary of how many samples were classified correctly. However, accuracy alone can be misleading if one class is easier to predict than the other, so it was not treated as the only metric of interest.
+
+#### Precision and recall
+
+Precision and recall were included because anomaly detection is often not well described by accuracy alone.
+
+- **precision** answers: when the model predicts `abnormal`, how often is it correct?
+- **recall** answers: out of all truly abnormal samples, how many did the model successfully detect?
+
+This distinction is especially important because a model can appear strong overall while still missing a meaningful portion of abnormal samples.
+
+#### F1 score
+
+The F1 score combines precision and recall into a single value and is useful when both false positives and false negatives matter.
+
+#### Confusion matrix
+
+The confusion matrix was included because it gives the raw count-level breakdown of:
+
+- true negatives
+- false positives
+- false negatives
+- true positives
+
+This makes it easier to interpret precision and recall in concrete terms rather than only as summary statistics.
+
+#### ROC-AUC
+
+ROC-AUC was also included in the baseline because it evaluates how well the model separates the two classes across thresholds rather than only at one threshold such as `0.5`.
+
+This is helpful because a model may have strong ranking ability even if a fixed threshold is not yet optimal. Including ROC-AUC therefore provides additional perspective on class separability.
+
+### Why evaluation results were saved as artifacts
+
+The evaluation stage does not only print results to the console. It also saves the computed metrics to disk as a structured artifact.
+
+This decision supports reproducibility and comparison. If evaluation results existed only in terminal output, they would be easy to lose and difficult to compare later across runs or machine types.
+
+Saving the test metrics to a JSON artifact makes it possible to:
+
+- reproduce reported results more easily
+- compare multiple runs consistently
+- generate later plots or summary tables
+- keep the project outputs aligned with the broader artifact-based workflow
+
+### Folder-based output organization
+
+As the pipeline became more complete, the artifact organization was also improved.
+
+Rather than saving all checkpoints and metric files into flat directories, outputs were grouped into **run-specific folders**. This was chosen because even a small project can quickly accumulate many artifacts once multiple runs or machine types are evaluated.
+
+For example, organizing outputs by run makes it easier to keep together:
+
+- checkpoints
+- training history
+- run configuration
+- test metrics
+- generated plots
+
+This improves clarity and makes later comparison across machine types easier.
+
+### Baseline evaluation result on the first machine-type run
+
+After implementing the evaluation pipeline, the first baseline test run was performed on the saved `fan` split using the best checkpoint.
+
+The observed test results were:
+
+- test loss: `0.1001`
+- accuracy: `0.9603`
+- precision: `0.9763`
+- recall: `0.8742`
+- F1 score: `0.9224`
+- ROC-AUC: `0.9920`
+
+These results suggest that the baseline model generalizes well on the held-out fan test split. Accuracy and F1 score were strong, and ROC-AUC was especially high, indicating that the model separates normal and abnormal samples effectively across thresholds.
+
+One notable pattern is that precision was higher than recall. This means the model was very accurate when it predicted `abnormal`, but it still missed some abnormal samples. In other words, the baseline appears somewhat conservative in predicting anomalies. This is not necessarily a flaw, but it is an important behavior to note because anomaly detection tasks often care about missed abnormal cases.
+
+### Why the first evaluation stage was kept intentionally simple
+
+Even though more analysis could have been added, the first evaluation stage was intentionally kept small and practical.
+
+For example, the baseline evaluation did **not** yet include:
+
+- threshold tuning
+- calibration analysis
+- per-group error breakdown
+- extensive error analysis reports
+
+These were deferred because the immediate priority was to confirm that the baseline model could be trained, selected, and evaluated end to end in a reproducible way. Once this baseline is stable, more detailed analysis can be added in later experiments if needed.
+
+### Summary
+
+In summary, the evaluation stage was designed as a clean final pass over the held-out test split using the saved best checkpoint. It reuses the same dataset and preprocessing pipeline as training, converts one-logit model outputs into binary predictions through a sigmoid plus threshold rule, and computes a compact but informative set of binary classification metrics. The results are saved as structured artifacts to support reproducibility and later comparison.
+
+This stage completes the first end-to-end baseline by providing a reliable estimate of test-set performance without redesigning the earlier data, preprocessing, model, or training stages.
+
+---
+
+## Baseline Visualization and Reporting Artifacts
+
+Once training and evaluation were both working, the next step was to add a small visualization stage. The purpose of this stage was not to create a large reporting framework, but rather to produce a few high-value plots that make the baseline behavior easier to interpret.
+
+### Why visualization was added
+
+The baseline pipeline already saves numerical artifacts such as training history and test metrics. However, some aspects of model behavior are easier to understand visually than through raw numbers alone.
+
+For the baseline, visualization was added mainly to support three practical goals:
+
+1. inspect training stability over time
+2. check for signs of overfitting or unstable learning
+3. interpret final test performance more clearly
+
+This stage was treated as a lightweight reporting utility rather than a core part of model training.
+
+### Why plotting was kept separate from training and evaluation
+
+A deliberate design choice was to keep plotting separate from both the training pipeline and the evaluation pipeline.
+
+This means that:
+
+- training is still responsible for optimization and saving history
+- evaluation is still responsible for test inference and metric computation
+- plotting is only responsible for turning saved artifacts into visual summaries
+
+This separation was chosen because plots are useful for interpretation, but they are not required for the correctness of training or evaluation. Keeping them separate makes the system easier to maintain and avoids coupling numerical computation with reporting code.
+
+### Chosen baseline plots
+
+For the first baseline, only three plots were prioritized:
+
+- training loss vs validation loss over epochs
+- validation accuracy over epochs
+- test confusion matrix
+
+These were chosen because they provide the most useful insight for relatively little additional complexity.
+
+### Training loss vs validation loss
+
+The training and validation loss curves were included because they are one of the clearest ways to inspect how learning progressed over time.
+
+These curves help answer questions such as:
+
+- did both training and validation improve together?
+- did validation stop improving while training continued to improve?
+- did optimization appear stable or noisy?
+
+This makes them especially useful for diagnosing underfitting, overfitting, or unstable training behavior.
+
+### Validation accuracy curve
+
+Validation accuracy was also plotted as a complementary view of held-out performance across epochs.
+
+Although validation loss remained the main checkpoint selection criterion, plotting validation accuracy still provides an intuitive view of how classification performance evolved over time.
+
+### Test confusion matrix
+
+The confusion matrix was chosen as the main evaluation visualization because it makes the final prediction behavior concrete.
+
+Unlike summary metrics alone, the confusion matrix directly shows the count of:
+
+- correctly identified normal samples
+- normal samples incorrectly predicted as abnormal
+- abnormal samples missed by the model
+- correctly identified abnormal samples
+
+This is particularly useful when precision and recall differ, because it helps explain where the trade-off is coming from.
+
+### Why more advanced plots were not added yet
+
+More complex visualizations were intentionally deferred. For example, the baseline visualization stage does not yet focus on:
+
+- ROC curve plots
+- calibration curves
+- per-machine or per-dB breakdown charts
+- embedding visualizations
+- per-sample spectrogram inspection dashboards
+
+These may still be useful later, but they were not necessary to establish the first baseline. The current priority was to produce a small number of plots that directly support interpretation of the baseline results.
+
+### Saving plots as artifacts
+
+Just like checkpoints and metric files, plots were also saved as run-specific artifacts rather than only displayed interactively.
+
+This supports reproducibility, easier comparison between runs, and easier inclusion of visual outputs in later reporting. It also keeps the project aligned with the general principle that important outputs should be preserved as artifacts rather than left only in notebook cells or terminal sessions.
+
+### Role of visualization in the full baseline pipeline
+
+At this point, the baseline pipeline can be viewed as:
+
+1. generate and save a split manifest
+2. load raw WAV files through the dataset loader
+3. apply deterministic preprocessing
+4. train the baseline CNN
+5. evaluate the saved best checkpoint on the test split
+6. generate plots from saved history and metrics
+
+This means the baseline is no longer only a model training script. It is now an end-to-end experimental workflow with saved split artifacts, saved checkpoints, saved metrics, and saved visualization outputs.
+
+### Summary
+
+In summary, a lightweight visualization stage was added after training and evaluation in order to make the baseline results easier to interpret. The selected plots were deliberately limited to loss curves, validation accuracy, and the confusion matrix, since these provide the most useful diagnostic and reporting value at this stage. Plotting was kept separate from the core training and evaluation logic so that the overall pipeline remains modular, reproducible, and easy to debug.
+
+---
+
+## Current Baseline Status and Next Step
+
+At this point, the project has a complete baseline workflow for a single machine-type experiment:
+
+- saved split generation
+- raw WAV dataset loading
+- deterministic baseline preprocessing
+- baseline CNN model
+- multi-epoch training with validation
+- checkpointing and saved history
+- held-out test evaluation
+- baseline visualization
+
+This means the project now has a stable reference pipeline that can be rerun and compared against future experiments.
+
+The next logical step is not to redesign the baseline itself, but to apply the same baseline pipeline to the remaining machine types so that performance can be compared across:
+
+- fan
+- pump
+- slider
+- valve
+
+This is an important stage because it helps determine whether the chosen baseline design works consistently across the broader dataset or whether performance differs substantially by machine type.
+
+Only after this baseline comparison is complete does it make sense to move on to larger experimental changes such as augmentation, stronger architectures, threshold tuning, or multi-machine training.
+
+---

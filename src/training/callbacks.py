@@ -1,4 +1,4 @@
-"""Checkpoint and history helpers for baseline training runs."""
+"""Checkpoint, history, and run-metadata helpers for baseline training runs."""
 
 from __future__ import annotations
 
@@ -30,11 +30,7 @@ def load_checkpoint(
 
 def save_history(history: dict[str, Any], output_path: str | Path) -> Path:
     """Persist a training history dictionary as JSON."""
-    history_path = Path(output_path).expanduser().resolve()
-    history_path.parent.mkdir(parents=True, exist_ok=True)
-    with history_path.open("w", encoding="utf-8") as file:
-        json.dump(history, file, indent=2)
-    return history_path
+    return save_json(history, output_path)
 
 
 def load_history(history_path: str | Path) -> dict[str, Any]:
@@ -47,3 +43,12 @@ def load_history(history_path: str | Path) -> dict[str, Any]:
     if not isinstance(history, dict):
         raise ValueError(f"History file '{resolved_path}' did not contain a JSON object.")
     return history
+
+
+def save_json(payload: dict[str, Any], output_path: str | Path) -> Path:
+    """Persist a dictionary as JSON."""
+    json_path = Path(output_path).expanduser().resolve()
+    json_path.parent.mkdir(parents=True, exist_ok=True)
+    with json_path.open("w", encoding="utf-8") as file:
+        json.dump(payload, file, indent=2)
+    return json_path
