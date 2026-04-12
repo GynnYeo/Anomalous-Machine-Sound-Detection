@@ -78,6 +78,18 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Optional checkpoint path to resume from.",
     )
+    parser.add_argument(
+        "--early-stopping-patience",
+        type=int,
+        default=None,
+        help="Stop training early after this many non-improving epochs.",
+    )
+    parser.add_argument(
+        "--early-stopping-min-delta",
+        type=float,
+        default=0.0,
+        help="Minimum validation-loss improvement required to reset early stopping.",
+    )
     return parser
 
 
@@ -96,6 +108,8 @@ def main() -> None:
         checkpoint_dir=args.checkpoint_dir,
         history_dir=args.history_dir,
         resume_from=args.resume_from,
+        early_stopping_patience=args.early_stopping_patience,
+        early_stopping_min_delta=args.early_stopping_min_delta,
     )
 
 

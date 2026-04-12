@@ -45,6 +45,8 @@ def run_training(
     checkpoint_dir: str | Path = "artifacts/checkpoints",
     history_dir: str | Path = "artifacts/metrics",
     resume_from: str | Path | None = None,
+    early_stopping_patience: int | None = None,
+    early_stopping_min_delta: float = 0.0,
 ) -> dict[str, Any]:
     """Run the baseline training loop and save artifacts under run-specific folders."""
     if epochs < 1:
@@ -55,6 +57,16 @@ def run_training(
         raise ValueError(f"learning_rate must be positive, got {learning_rate}.")
     if num_workers < 0:
         raise ValueError(f"num_workers must be non-negative, got {num_workers}.")
+    if early_stopping_patience is not None and early_stopping_patience < 1:
+        raise ValueError(
+            "early_stopping_patience must be at least 1 when provided, "
+            f"got {early_stopping_patience}."
+        )
+    if early_stopping_min_delta < 0:
+        raise ValueError(
+            "early_stopping_min_delta must be non-negative, "
+            f"got {early_stopping_min_delta}."
+        )
 
     set_seed(seed)
     device = select_device()
@@ -109,9 +121,12 @@ def run_training(
         batch_size=batch_size,
         learning_rate=learning_rate,
         seed=seed,
+        early_stopping_patience=early_stopping_patience,
+        early_stopping_min_delta=early_stopping_min_delta,
     )
     start_epoch = 1
     best_val_loss = float("inf")
+    epochs_without_improvement = 0
 
     if resume_from is not None:
         checkpoint = load_checkpoint(resume_from, map_location=device)
@@ -123,6 +138,12 @@ def run_training(
         if history_path.exists():
             history = load_history(history_path)
         print(f"Resumed training from checkpoint: {Path(resume_from).expanduser().resolve()}")
+
+        if history.get("epochs"):
+            epochs_without_improvement = _count_epochs_without_improvement(
+                epoch_records=history["epochs"],
+                best_epoch=history.get("best_epoch"),
+            )
 
     history["best_checkpoint_path"] = to_portable_path(best_checkpoint_path)
     history["last_checkpoint_path"] = to_portable_path(last_checkpoint_path)
@@ -138,6 +159,8 @@ def run_training(
         seed=seed,
         epochs_requested=epochs,
         num_workers=num_workers,
+        early_stopping_patience=early_stopping_patience,
+        early_stopping_min_delta=early_stopping_min_delta,
         model=model,
         criterion=criterion,
         optimizer=optimizer,
@@ -193,13 +216,18 @@ def run_training(
             "manifest_path": to_portable_path(manifest_path),
         }
 
-        improved = epoch_record["val_loss"] < best_val_loss
+        improved = epoch_record["val_loss"] < (best_val_loss - early_stopping_min_delta)
         if improved:
             best_val_loss = epoch_record["val_loss"]
             history["best_epoch"] = epoch
             history["best_val_loss"] = best_val_loss
+            history["epochs_without_improvement"] = 0
             checkpoint["best_val_loss"] = best_val_loss
             save_checkpoint(checkpoint, best_checkpoint_path)
+            epochs_without_improvement = 0
+        else:
+            epochs_without_improvement += 1
+            history["epochs_without_improvement"] = epochs_without_improvement
 
         checkpoint["best_val_loss"] = best_val_loss
         save_checkpoint(checkpoint, last_checkpoint_path)
@@ -214,6 +242,21 @@ def run_training(
 
         history["completed_epochs"] = len(history["epochs"])
         save_history(history, history_path)
+
+        if (
+            early_stopping_patience is not None
+            and epochs_without_improvement >= early_stopping_patience
+        ):
+            history["early_stopped"] = True
+            history["stopped_epoch"] = epoch
+            save_history(history, history_path)
+            print(
+                "Early stopping triggered | "
+                f"patience={early_stopping_patience} | "
+                f"min_delta={early_stopping_min_delta:.6f} | "
+                f"best_epoch={history.get('best_epoch')}"
+            )
+            break
 
     total_training_time_seconds = previous_total_training_time + (
         time.perf_counter() - total_start_time
@@ -236,6 +279,8 @@ def _build_initial_history(
     batch_size: int,
     learning_rate: float,
     seed: int,
+    early_stopping_patience: int | None,
+    early_stopping_min_delta: float,
 ) -> dict[str, Any]:
     """Create the initial history structure for a training run."""
     return {
@@ -249,6 +294,11 @@ def _build_initial_history(
         "completed_epochs": 0,
         "best_epoch": None,
         "best_val_loss": None,
+        "early_stopping_patience": early_stopping_patience,
+        "early_stopping_min_delta": early_stopping_min_delta,
+        "epochs_without_improvement": 0,
+        "early_stopped": False,
+        "stopped_epoch": None,
         "total_training_time_seconds": None,
     }
 
@@ -262,6 +312,8 @@ def _build_run_config(
     seed: int,
     epochs_requested: int,
     num_workers: int,
+    early_stopping_patience: int | None,
+    early_stopping_min_delta: float,
     model: torch.nn.Module,
     criterion: torch.nn.Module,
     optimizer: torch.optim.Optimizer,
@@ -279,6 +331,8 @@ def _build_run_config(
         "seed": seed,
         "epochs_requested": epochs_requested,
         "num_workers": num_workers,
+        "early_stopping_patience": early_stopping_patience,
+        "early_stopping_min_delta": early_stopping_min_delta,
         "model_name": model.__class__.__name__,
         "loss_name": criterion.__class__.__name__,
         "optimizer_name": optimizer.__class__.__name__,
@@ -295,3 +349,18 @@ def _build_run_config(
         "checkpoint_dir": to_portable_path(checkpoint_dir),
         "history_dir": to_portable_path(history_dir),
     }
+
+
+def _count_epochs_without_improvement(
+    epoch_records: list[dict[str, Any]],
+    best_epoch: int | None,
+) -> int:
+    """Count epochs since the last recorded best epoch for resumed training."""
+    if not epoch_records or best_epoch is None:
+        return 0
+
+    return sum(
+        1
+        for record in epoch_records
+        if int(record["epoch"]) > int(best_epoch)
+    )
