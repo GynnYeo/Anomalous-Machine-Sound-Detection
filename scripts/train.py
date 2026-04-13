@@ -90,6 +90,17 @@ def build_parser() -> argparse.ArgumentParser:
         default=0.0,
         help="Minimum validation-loss improvement required to reset early stopping.",
     )
+    parser.add_argument(
+        "--pos-weight",
+        type=float,
+        default=None,
+        help="Optional manual positive-class weight for BCEWithLogitsLoss.",
+    )
+    parser.add_argument(
+        "--auto-pos-weight",
+        action="store_true",
+        help="Automatically compute positive-class weight from the train split.",
+    )
     return parser
 
 
@@ -110,6 +121,8 @@ def main() -> None:
         resume_from=args.resume_from,
         early_stopping_patience=args.early_stopping_patience,
         early_stopping_min_delta=args.early_stopping_min_delta,
+        pos_weight=args.pos_weight,
+        auto_pos_weight=args.auto_pos_weight,
     )
 
 

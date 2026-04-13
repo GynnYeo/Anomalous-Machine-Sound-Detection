@@ -10,6 +10,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from src.data.dataset import MIMIIDataset
+from src.data.split import load_split_manifest
 from src.data.transforms import BaselineLogMelTransform
 from src.models.cnn_baseline import BaselineCNN
 from src.training.callbacks import (
@@ -47,6 +48,8 @@ def run_training(
     resume_from: str | Path | None = None,
     early_stopping_patience: int | None = None,
     early_stopping_min_delta: float = 0.0,
+    pos_weight: float | None = None,
+    auto_pos_weight: bool = False,
 ) -> dict[str, Any]:
     """Run the baseline training loop and save artifacts under run-specific folders."""
     if epochs < 1:
@@ -67,10 +70,20 @@ def run_training(
             "early_stopping_min_delta must be non-negative, "
             f"got {early_stopping_min_delta}."
         )
+    if pos_weight is not None and pos_weight <= 0:
+        raise ValueError(f"pos_weight must be positive when provided, got {pos_weight}.")
+    if auto_pos_weight and pos_weight is not None:
+        raise ValueError("Use either pos_weight or auto_pos_weight, not both.")
 
     set_seed(seed)
     device = select_device()
     transform = BaselineLogMelTransform()
+    pos_weight_strategy = "auto" if auto_pos_weight else ("manual" if pos_weight is not None else "none")
+    effective_pos_weight = (
+        compute_train_split_pos_weight(manifest_path)
+        if auto_pos_weight
+        else pos_weight
+    )
 
     train_dataset = MIMIIDataset(
         manifest_path=manifest_path,
@@ -102,7 +115,7 @@ def run_training(
     )
 
     model = BaselineCNN().to(device)
-    criterion = build_baseline_loss()
+    criterion = build_baseline_loss(pos_weight=effective_pos_weight, device=device)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     checkpoint_root = Path(checkpoint_dir).expanduser().resolve()
@@ -123,6 +136,8 @@ def run_training(
         seed=seed,
         early_stopping_patience=early_stopping_patience,
         early_stopping_min_delta=early_stopping_min_delta,
+        pos_weight_strategy=pos_weight_strategy,
+        pos_weight=effective_pos_weight,
     )
     start_epoch = 1
     best_val_loss = float("inf")
@@ -161,6 +176,8 @@ def run_training(
         num_workers=num_workers,
         early_stopping_patience=early_stopping_patience,
         early_stopping_min_delta=early_stopping_min_delta,
+        pos_weight_strategy=pos_weight_strategy,
+        pos_weight=effective_pos_weight,
         model=model,
         criterion=criterion,
         optimizer=optimizer,
@@ -172,7 +189,8 @@ def run_training(
 
     print(
         f"Starting training on {device.type} | "
-        f"train_samples={len(train_dataset)} | val_samples={len(val_dataset)}"
+        f"train_samples={len(train_dataset)} | val_samples={len(val_dataset)} | "
+        f"pos_weight={effective_pos_weight if effective_pos_weight is not None else 'none'}"
     )
 
     previous_total_training_time = history.get("total_training_time_seconds")
@@ -281,6 +299,8 @@ def _build_initial_history(
     seed: int,
     early_stopping_patience: int | None,
     early_stopping_min_delta: float,
+    pos_weight_strategy: str,
+    pos_weight: float | None,
 ) -> dict[str, Any]:
     """Create the initial history structure for a training run."""
     return {
@@ -296,6 +316,8 @@ def _build_initial_history(
         "best_val_loss": None,
         "early_stopping_patience": early_stopping_patience,
         "early_stopping_min_delta": early_stopping_min_delta,
+        "pos_weight_strategy": pos_weight_strategy,
+        "pos_weight": pos_weight,
         "epochs_without_improvement": 0,
         "early_stopped": False,
         "stopped_epoch": None,
@@ -314,6 +336,8 @@ def _build_run_config(
     num_workers: int,
     early_stopping_patience: int | None,
     early_stopping_min_delta: float,
+    pos_weight_strategy: str,
+    pos_weight: float | None,
     model: torch.nn.Module,
     criterion: torch.nn.Module,
     optimizer: torch.optim.Optimizer,
@@ -333,6 +357,8 @@ def _build_run_config(
         "num_workers": num_workers,
         "early_stopping_patience": early_stopping_patience,
         "early_stopping_min_delta": early_stopping_min_delta,
+        "pos_weight_strategy": pos_weight_strategy,
+        "pos_weight": pos_weight,
         "model_name": model.__class__.__name__,
         "loss_name": criterion.__class__.__name__,
         "optimizer_name": optimizer.__class__.__name__,
@@ -364,3 +390,20 @@ def _count_epochs_without_improvement(
         for record in epoch_records
         if int(record["epoch"]) > int(best_epoch)
     )
+
+
+def compute_train_split_pos_weight(manifest_path: str | Path) -> float:
+    """Compute BCE positive-class weight from the train split label distribution."""
+    split_df = load_split_manifest(manifest_path)
+    train_df = split_df.loc[split_df["split"] == "train"]
+    if train_df.empty:
+        raise ValueError("Cannot compute pos_weight because the train split is empty.")
+
+    positive_count = int((train_df["label"] == "abnormal").sum())
+    negative_count = int((train_df["label"] == "normal").sum())
+    if positive_count == 0:
+        raise ValueError("Cannot compute pos_weight because the train split has zero abnormal samples.")
+    if negative_count == 0:
+        raise ValueError("Cannot compute pos_weight because the train split has zero normal samples.")
+
+    return negative_count / positive_count

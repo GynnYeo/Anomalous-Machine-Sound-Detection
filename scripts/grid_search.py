@@ -110,6 +110,13 @@ def build_parser() -> argparse.ArgumentParser:
         default=0.0,
         help="Minimum validation-loss improvement required to reset early stopping.",
     )
+    parser.add_argument(
+        "--pos-weights",
+        type=str,
+        nargs="+",
+        default=["none"],
+        help="Positive-class weights to include in the grid. Use numeric values or 'auto' or 'none'.",
+    )
     return parser
 
 
@@ -117,7 +124,8 @@ def main() -> None:
     """Run all hyperparameter combinations, then persist a summary leaderboard."""
     args = build_parser().parse_args()
 
-    combinations = list(itertools.product(args.learning_rates, args.batch_sizes))
+    pos_weight_specs = [parse_pos_weight_spec(value) for value in args.pos_weights]
+    combinations = list(itertools.product(args.learning_rates, args.batch_sizes, pos_weight_specs))
     if not combinations:
         raise ValueError("Grid search produced zero hyperparameter combinations.")
 
@@ -127,17 +135,19 @@ def main() -> None:
     )
 
     records: list[dict[str, Any]] = []
-    for learning_rate, batch_size in combinations:
+    for learning_rate, batch_size, pos_weight_spec in combinations:
         run_name = build_run_name(
             run_prefix=args.run_prefix,
             learning_rate=learning_rate,
             batch_size=batch_size,
+            pos_weight_spec=pos_weight_spec,
         )
         metrics_path = args.metrics_dir.expanduser().resolve() / run_name / "test_metrics.json"
 
         print(
             f"[Grid Search] run_name={run_name} | "
-            f"learning_rate={learning_rate} | batch_size={batch_size}"
+            f"learning_rate={learning_rate} | batch_size={batch_size} | "
+            f"pos_weight={format_pos_weight_spec(pos_weight_spec)}"
         )
 
         if args.skip_existing and metrics_path.exists():
@@ -157,6 +167,8 @@ def main() -> None:
                 history_dir=args.metrics_dir,
                 early_stopping_patience=args.early_stopping_patience,
                 early_stopping_min_delta=args.early_stopping_min_delta,
+                pos_weight=pos_weight_spec["value"],
+                auto_pos_weight=pos_weight_spec["mode"] == "auto",
             )
             evaluation_results = run_evaluation(
                 manifest_path=args.manifest_path,
@@ -172,6 +184,9 @@ def main() -> None:
                 "run_name": run_name,
                 "learning_rate": float(learning_rate),
                 "batch_size": int(batch_size),
+                "pos_weight_mode": pos_weight_spec["mode"],
+                "pos_weight_requested": pos_weight_spec["value"],
+                "pos_weight_effective": history.get("pos_weight"),
                 "epochs_requested": int(args.epochs),
                 "seed": int(args.seed),
                 "best_epoch": history.get("best_epoch"),
@@ -210,10 +225,12 @@ def build_run_name(
     run_prefix: str,
     learning_rate: float,
     batch_size: int,
+    pos_weight_spec: dict[str, Any],
 ) -> str:
     """Build a compact run name from the grid-search hyperparameters."""
     learning_rate_text = format(learning_rate, ".0e").replace("-", "m")
-    return f"{run_prefix}_lr{learning_rate_text}_bs{batch_size}"
+    pos_weight_text = format_pos_weight_spec(pos_weight_spec).replace(".", "p")
+    return f"{run_prefix}_lr{learning_rate_text}_bs{batch_size}_pw{pos_weight_text}"
 
 
 def load_json(path: str | Path) -> dict[str, Any]:
@@ -224,6 +241,27 @@ def load_json(path: str | Path) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ValueError(f"Expected a JSON object in '{resolved_path}'.")
     return payload
+
+
+def parse_pos_weight_spec(value: str) -> dict[str, Any]:
+    """Parse a grid-search positive-class weight spec."""
+    normalized = value.strip().lower()
+    if normalized == "auto":
+        return {"mode": "auto", "value": None}
+    if normalized == "none":
+        return {"mode": "none", "value": None}
+
+    parsed_value = float(value)
+    if parsed_value <= 0:
+        raise ValueError(f"Positive-class weights must be positive, got {value}.")
+    return {"mode": "manual", "value": parsed_value}
+
+
+def format_pos_weight_spec(spec: dict[str, Any]) -> str:
+    """Return a short stable text form for a positive-class weight spec."""
+    if spec["mode"] in {"auto", "none"}:
+        return spec["mode"]
+    return str(spec["value"])
 
 
 if __name__ == "__main__":
