@@ -1,0 +1,25 @@
+{
+  "run_name": "all_machines_grid_lr1em04_bs16",
+  "manifest_path": "data/splits/all_machines_split_seed42.csv",
+  "checkpoint_path": "artifacts/checkpoints/all_machines_grid_lr1em04_bs16/best.pt",
+  "split": "test",
+  "device": "cuda",
+  "num_samples": 9116,
+  "loss": 0.07125284337127166,
+  "accuracy": 0.9757569109258447,
+  "precision": 0.9383484162895928,
+  "recall": 0.9367588932806324,
+  "f1": 0.9375529810680984,
+  "confusion_matrix": [
+    [
+      7236,
+      109
+    ],
+    [
+      112,
+      1659
+    ]
+  ],
+  "metrics_path": "artifacts/metrics/all_machines_grid_lr1em04_bs16/test_metrics.json",
+  "roc_auc": 0.9937622977253604
+}
