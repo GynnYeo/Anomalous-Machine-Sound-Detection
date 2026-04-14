@@ -419,7 +419,7 @@ Current device priority:
 
 1. CUDA
 2. MPS
-3. CPU
+3. CPU      
 
 Example artifact layout:
 
