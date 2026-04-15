@@ -110,20 +110,125 @@
       "val_loss": 0.03769553061031734,
       "val_accuracy": 0.990228013029316,
       "epoch_time_seconds": 387.1125458060005
+    },
+    {
+      "epoch": 16,
+      "train_loss": 0.10869008676711342,
+      "val_loss": 0.041113963284096146,
+      "val_accuracy": 0.9897787262720431,
+      "epoch_time_seconds": 362.8948617700007
+    },
+    {
+      "epoch": 17,
+      "train_loss": 0.10626316933297127,
+      "val_loss": 0.02994671775520547,
+      "val_accuracy": 0.9909019431652252,
+      "epoch_time_seconds": 383.1444027489997
+    },
+    {
+      "epoch": 18,
+      "train_loss": 0.10273937541488365,
+      "val_loss": 0.03501114169518277,
+      "val_accuracy": 0.990789621475907,
+      "epoch_time_seconds": 378.62959069000135
+    },
+    {
+      "epoch": 19,
+      "train_loss": 0.10052406748056324,
+      "val_loss": 0.0420753096228286,
+      "val_accuracy": 0.9868583623497698,
+      "epoch_time_seconds": 371.3259304869989
+    },
+    {
+      "epoch": 20,
+      "train_loss": 0.09543596128039424,
+      "val_loss": 0.039491011118951126,
+      "val_accuracy": 0.9895540828934067,
+      "epoch_time_seconds": 386.58230803100014
+    },
+    {
+      "epoch": 21,
+      "train_loss": 0.09746743556198573,
+      "val_loss": 0.029282932123244294,
+      "val_accuracy": 0.9925867685049983,
+      "epoch_time_seconds": 389.8254652200012
+    },
+    {
+      "epoch": 22,
+      "train_loss": 0.09020645208062533,
+      "val_loss": 0.026043415443681894,
+      "val_accuracy": 0.9930360552622711,
+      "epoch_time_seconds": 387.8276172709993
+    },
+    {
+      "epoch": 23,
+      "train_loss": 0.08724136494663456,
+      "val_loss": 0.025329180862599353,
+      "val_accuracy": 0.9914635516118162,
+      "epoch_time_seconds": 385.0945330119994
+    },
+    {
+      "epoch": 24,
+      "train_loss": 0.08554054605876402,
+      "val_loss": 0.015916676274328894,
+      "val_accuracy": 0.9966303493204538,
+      "epoch_time_seconds": 390.3051603879994
+    },
+    {
+      "epoch": 25,
+      "train_loss": 0.08275456872600954,
+      "val_loss": 0.023208806374644276,
+      "val_accuracy": 0.9931483769515893,
+      "epoch_time_seconds": 392.994277460999
+    },
+    {
+      "epoch": 26,
+      "train_loss": 0.08109983456279983,
+      "val_loss": 0.022214637334134826,
+      "val_accuracy": 0.9929237335729529,
+      "epoch_time_seconds": 390.91749100000015
+    },
+    {
+      "epoch": 27,
+      "train_loss": 0.0792095337831839,
+      "val_loss": 0.019995482865568955,
+      "val_accuracy": 0.9937099853981803,
+      "epoch_time_seconds": 365.9125107640011
+    },
+    {
+      "epoch": 28,
+      "train_loss": 0.07622517176005786,
+      "val_loss": 0.02247702675885641,
+      "val_accuracy": 0.9950578456699989,
+      "epoch_time_seconds": 386.5938248470011
+    },
+    {
+      "epoch": 29,
+      "train_loss": 0.07598379857393785,
+      "val_loss": 0.02990371825279164,
+      "val_accuracy": 0.9918005166797709,
+      "epoch_time_seconds": 393.74831085999904
+    },
+    {
+      "epoch": 30,
+      "train_loss": 0.07425432496336605,
+      "val_loss": 0.026153466824067474,
+      "val_accuracy": 0.9916881949904527,
+      "epoch_time_seconds": 392.62954944100056
     }
   ],
-  "completed_epochs": 15,
-  "best_epoch": 11,
-  "best_val_loss": 0.03765326820977418,
+  "completed_epochs": 30,
+  "best_epoch": 24,
+  "best_val_loss": 0.015916676274328894,
   "early_stopping_patience": 4,
   "early_stopping_min_delta": 0.001,
   "pos_weight_strategy": "manual",
   "pos_weight": 1.5,
   "model_name": "wider_cnn",
-  "epochs_without_improvement": 4,
+  "epochs_without_improvement": 6,
   "early_stopped": true,
-  "stopped_epoch": 15,
-  "total_training_time_seconds": 6446.893370977,
+  "stopped_epoch": 30,
+  "total_training_time_seconds": 12205.590852714999,
   "best_checkpoint_path": "artifacts/checkpoints/all_machines_wider_cnn/best.pt",
   "last_checkpoint_path": "artifacts/checkpoints/all_machines_wider_cnn/last.pt",
   "history_path": "artifacts/metrics/all_machines_wider_cnn/history.json",
