@@ -1,0 +1,78 @@
+{
+  "run_name": "fan_autoencoder_v1",
+  "manifest_path": "data/splits/fan_split_seed42.csv",
+  "device": "cuda",
+  "batch_size": 32,
+  "learning_rate": 0.001,
+  "seed": 42,
+  "epochs": [
+    {
+      "epoch": 1,
+      "train_loss": 51.98020765924746,
+      "val_loss": 7.924123972730175,
+      "epoch_time_seconds": 81.9496968750027
+    },
+    {
+      "epoch": 2,
+      "train_loss": 6.365745704627476,
+      "val_loss": 5.590701599980822,
+      "epoch_time_seconds": 82.4117332120004
+    },
+    {
+      "epoch": 3,
+      "train_loss": 5.53967231832399,
+      "val_loss": 5.2831509323910515,
+      "epoch_time_seconds": 81.22746376499708
+    },
+    {
+      "epoch": 4,
+      "train_loss": 5.29065691801668,
+      "val_loss": 5.095282971837312,
+      "epoch_time_seconds": 80.10701677400357
+    },
+    {
+      "epoch": 5,
+      "train_loss": 5.15055661499866,
+      "val_loss": 4.964350633818815,
+      "epoch_time_seconds": 83.71932096799719
+    },
+    {
+      "epoch": 6,
+      "train_loss": 5.035992153846413,
+      "val_loss": 4.875348108805383,
+      "epoch_time_seconds": 87.98374100000365
+    },
+    {
+      "epoch": 7,
+      "train_loss": 4.971132988490941,
+      "val_loss": 4.834299354976153,
+      "epoch_time_seconds": 83.03486062699812
+    },
+    {
+      "epoch": 8,
+      "train_loss": 4.90216258745252,
+      "val_loss": 4.7655264000942905,
+      "epoch_time_seconds": 82.25371063599596
+    },
+    {
+      "epoch": 9,
+      "train_loss": 4.841690417447705,
+      "val_loss": 4.704540214379109,
+      "epoch_time_seconds": 82.22623974599992
+    },
+    {
+      "epoch": 10,
+      "train_loss": 4.79814694702991,
+      "val_loss": 4.644819921946274,
+      "epoch_time_seconds": 83.82989874399937
+    }
+  ],
+  "completed_epochs": 10,
+  "best_epoch": 10,
+  "best_val_loss": 4.644819921946274,
+  "total_training_time_seconds": null,
+  "best_checkpoint_path": "artifacts/checkpoints/fan_autoencoder_v1/best.pt",
+  "last_checkpoint_path": "artifacts/checkpoints/fan_autoencoder_v1/last.pt",
+  "history_path": "artifacts/metrics/fan_autoencoder_v1/history.json",
+  "run_config_path": "artifacts/metrics/fan_autoencoder_v1/run_config.json"
+}
