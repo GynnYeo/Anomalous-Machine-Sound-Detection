@@ -65,12 +65,72 @@
       "train_loss": 4.79814694702991,
       "val_loss": 4.644819921946274,
       "epoch_time_seconds": 83.82989874399937
+    },
+    {
+      "epoch": 11,
+      "train_loss": 4.749205148614989,
+      "val_loss": 4.645542841051241,
+      "epoch_time_seconds": 76.41707078600302
+    },
+    {
+      "epoch": 12,
+      "train_loss": 4.716721599321424,
+      "val_loss": 4.59446998666911,
+      "epoch_time_seconds": 78.92543835499964
+    },
+    {
+      "epoch": 13,
+      "train_loss": 4.682203932686086,
+      "val_loss": 4.551856906576098,
+      "epoch_time_seconds": 81.08331043599901
+    },
+    {
+      "epoch": 14,
+      "train_loss": 4.6758793356959805,
+      "val_loss": 4.515012110159294,
+      "epoch_time_seconds": 82.32223876000353
+    },
+    {
+      "epoch": 15,
+      "train_loss": 4.617073507016422,
+      "val_loss": 4.494556448668491,
+      "epoch_time_seconds": 82.63946204999957
+    },
+    {
+      "epoch": 16,
+      "train_loss": 4.602325305002599,
+      "val_loss": 4.493326808703418,
+      "epoch_time_seconds": 80.27135556499707
+    },
+    {
+      "epoch": 17,
+      "train_loss": 4.5682856009781725,
+      "val_loss": 4.443466874826002,
+      "epoch_time_seconds": 80.52403913099988
+    },
+    {
+      "epoch": 18,
+      "train_loss": 4.558348906698402,
+      "val_loss": 4.416803845489125,
+      "epoch_time_seconds": 79.91920986499463
+    },
+    {
+      "epoch": 19,
+      "train_loss": 4.543365706695369,
+      "val_loss": 4.431165278846244,
+      "epoch_time_seconds": 80.74917996899603
+    },
+    {
+      "epoch": 20,
+      "train_loss": 4.510654261536393,
+      "val_loss": 4.391247598876177,
+      "epoch_time_seconds": 82.39186224600417
     }
   ],
-  "completed_epochs": 10,
-  "best_epoch": 10,
-  "best_val_loss": 4.644819921946274,
-  "total_training_time_seconds": null,
+  "completed_epochs": 20,
+  "best_epoch": 20,
+  "best_val_loss": 4.391247598876177,
+  "total_training_time_seconds": 1634.4090173799996,
   "best_checkpoint_path": "artifacts/checkpoints/fan_autoencoder_v1/best.pt",
   "last_checkpoint_path": "artifacts/checkpoints/fan_autoencoder_v1/last.pt",
   "history_path": "artifacts/metrics/fan_autoencoder_v1/history.json",
