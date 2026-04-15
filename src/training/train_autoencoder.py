@@ -9,7 +9,7 @@ from typing import Any
 import torch
 from torch.utils.data import DataLoader
 
-from models.conv_autoencoder import ConvAutoencoder
+from src.models.conv_autoencoder import ConvAutoencoder
 from src.data.dataset import MIMIIDataset
 from src.data.transforms import BaselineLogMelTransform
 from src.training.autoencoder_trainer import (
@@ -24,6 +24,7 @@ from src.training.callbacks import (
     save_history,
     save_json,
 )
+
 from src.training.losses import build_baseline_loss
 from src.training.trainer import train_one_epoch, validate_one_epoch
 from src.utils.io import to_portable_path
