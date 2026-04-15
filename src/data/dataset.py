@@ -28,6 +28,7 @@ class MIMIIDataset(Dataset[dict[str, Any]]):
         split: str,
         transform: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
         return_metadata: bool = False,
+        label_filter: str | None = None,
     ) -> None:
         self.manifest_path = Path(manifest_path).expanduser().resolve()
         self.split = split
@@ -44,6 +45,17 @@ class MIMIIDataset(Dataset[dict[str, Any]]):
         if split_df.empty:
             raise ValueError(
                 f"No rows found for split='{split}' in manifest '{self.manifest_path}'."
+            )
+        
+        if label_filter is not None:
+            if label_filter not in VALID_LABELS:
+                raise ValueError(f"Invalid label_filter: {label_filter}")
+            split_df = split_df[split_df["label"] == label_filter].copy()
+
+        if split_df.empty:
+            raise ValueError(
+                f"No rows found for split='{split}' with label_filter='{label_filter}' "
+                f"in manifest '{self.manifest_path}'."
             )
 
         invalid_labels = sorted(set(split_df["label"]) - VALID_LABELS)
