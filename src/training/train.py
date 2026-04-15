@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 from src.data.dataset import MIMIIDataset
 from src.data.split import load_split_manifest
 from src.data.transforms import BaselineLogMelTransform
-from src.models.cnn_baseline import BaselineCNN
+from src.models.registry import build_model
 from src.training.callbacks import (
     load_checkpoint,
     load_history,
@@ -50,6 +50,7 @@ def run_training(
     early_stopping_min_delta: float = 0.0,
     pos_weight: float | None = None,
     auto_pos_weight: bool = False,
+    model_name: str = "baseline_cnn",
 ) -> dict[str, Any]:
     """Run the baseline training loop and save artifacts under run-specific folders."""
     if epochs < 1:
@@ -114,7 +115,7 @@ def run_training(
         **dataloader_kwargs,
     )
 
-    model = BaselineCNN().to(device)
+    model = build_model(model_name).to(device)
     criterion = build_baseline_loss(pos_weight=effective_pos_weight, device=device)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -138,6 +139,7 @@ def run_training(
         early_stopping_min_delta=early_stopping_min_delta,
         pos_weight_strategy=pos_weight_strategy,
         pos_weight=effective_pos_weight,
+        model_name=model_name,
     )
     start_epoch = 1
     best_val_loss = float("inf")
@@ -178,6 +180,7 @@ def run_training(
         early_stopping_min_delta=early_stopping_min_delta,
         pos_weight_strategy=pos_weight_strategy,
         pos_weight=effective_pos_weight,
+        model_name=model_name,
         model=model,
         criterion=criterion,
         optimizer=optimizer,
@@ -301,6 +304,7 @@ def _build_initial_history(
     early_stopping_min_delta: float,
     pos_weight_strategy: str,
     pos_weight: float | None,
+    model_name: str,
 ) -> dict[str, Any]:
     """Create the initial history structure for a training run."""
     return {
@@ -318,6 +322,7 @@ def _build_initial_history(
         "early_stopping_min_delta": early_stopping_min_delta,
         "pos_weight_strategy": pos_weight_strategy,
         "pos_weight": pos_weight,
+        "model_name": model_name,
         "epochs_without_improvement": 0,
         "early_stopped": False,
         "stopped_epoch": None,
@@ -338,6 +343,7 @@ def _build_run_config(
     early_stopping_min_delta: float,
     pos_weight_strategy: str,
     pos_weight: float | None,
+    model_name: str,
     model: torch.nn.Module,
     criterion: torch.nn.Module,
     optimizer: torch.optim.Optimizer,
@@ -359,7 +365,8 @@ def _build_run_config(
         "early_stopping_min_delta": early_stopping_min_delta,
         "pos_weight_strategy": pos_weight_strategy,
         "pos_weight": pos_weight,
-        "model_name": model.__class__.__name__,
+        "model_name": model_name,
+        "model_class_name": model.__class__.__name__,
         "loss_name": criterion.__class__.__name__,
         "optimizer_name": optimizer.__class__.__name__,
         "preprocessing_name": transform.__class__.__name__,

@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -89,6 +90,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Parent directory for threshold-tuning outputs.",
     )
     parser.add_argument(
+        "--tag",
+        type=str,
+        default=None,
+        help="Optional custom tag appended to this threshold-tuning run's output folder.",
+    )
+    parser.add_argument(
         "--evaluate-test",
         action="store_true",
         help="Also evaluate the selected threshold on the test split and save the result.",
@@ -103,10 +110,21 @@ def main() -> None:
 
     checkpoint_path = args.checkpoint_path.expanduser().resolve()
     run_name = infer_run_name(checkpoint_path, args.run_name)
-    output_run_dir = args.output_dir.expanduser().resolve() / run_name
+    run_tag = build_run_tag(
+        split=args.split,
+        metric=args.metric,
+        thresholds=thresholds,
+        user_tag=args.tag,
+    )
+    output_run_dir = args.output_dir.expanduser().resolve() / run_name / run_tag
     output_run_dir.mkdir(parents=True, exist_ok=True)
 
     device = select_device()
+    print(
+        f"Starting threshold tuning | run_name={run_name} | split={args.split} | "
+        f"metric={args.metric} | thresholds={len(thresholds)} | device={device.type} | "
+        f"output_dir={output_run_dir}"
+    )
     labels, probabilities, loss = collect_split_outputs(
         manifest_path=args.manifest_path,
         checkpoint_path=checkpoint_path,
@@ -123,6 +141,7 @@ def main() -> None:
         tuned_split=args.split,
         split_loss=loss,
     )
+    print(f"Ranking {len(records)} thresholds using metric '{args.metric}'...")
     summary_df = rank_threshold_records(pd.DataFrame(records), metric=args.metric)
 
     summary_csv_path = output_run_dir / f"{args.split}_threshold_summary.csv"
@@ -134,6 +153,7 @@ def main() -> None:
     best_record = summary_df.iloc[0].to_dict()
     selection_payload: dict[str, Any] = {
         "run_name": run_name,
+        "run_tag": run_tag,
         "manifest_path": to_portable_path(args.manifest_path),
         "checkpoint_path": to_portable_path(checkpoint_path),
         "tuned_split": args.split,
@@ -156,6 +176,7 @@ def main() -> None:
     }
 
     if args.evaluate_test:
+        print("Evaluating the selected threshold on the test split...")
         test_labels, test_probabilities, test_loss = collect_split_outputs(
             manifest_path=args.manifest_path,
             checkpoint_path=checkpoint_path,
@@ -219,6 +240,7 @@ def collect_split_outputs(
     device: torch.device,
 ) -> tuple[list[int], list[float], float]:
     """Run inference on one split and return labels, probabilities, and average loss."""
+    print(f"Loading '{split}' dataset from manifest '{Path(manifest_path).expanduser().resolve()}'...")
     transform = BaselineLogMelTransform()
     dataset = MIMIIDataset(
         manifest_path=manifest_path,
@@ -233,6 +255,11 @@ def collect_split_outputs(
         num_workers=num_workers,
         pin_memory=device.type == "cuda",
     )
+    total_batches = len(dataloader)
+    print(
+        f"Running inference on split='{split}' | samples={len(dataset)} | "
+        f"batch_size={batch_size} | batches={total_batches}"
+    )
 
     model = BaselineCNN().to(device)
     checkpoint = load_checkpoint(checkpoint_path, map_location=device)
@@ -246,7 +273,7 @@ def collect_split_outputs(
     probabilities: list[float] = []
 
     with torch.no_grad():
-        for batch in dataloader:
+        for batch_index, batch in enumerate(dataloader, start=1):
             inputs = batch["input"].to(device=device, dtype=torch.float32)
             batch_labels = batch["label"].to(device=device, dtype=torch.float32)
 
@@ -261,9 +288,23 @@ def collect_split_outputs(
             labels.extend(batch_labels.detach().cpu().to(dtype=torch.int64).tolist())
             probabilities.extend(batch_probabilities.detach().cpu().tolist())
 
+            if (
+                batch_index == 1
+                or batch_index == total_batches
+                or batch_index % 25 == 0
+            ):
+                print(
+                    f"[{split}] batch {batch_index}/{total_batches} | "
+                    f"processed_samples={total_samples}"
+                )
+
     if total_samples == 0:
         raise ValueError(f"Split '{split}' produced zero samples during threshold tuning.")
 
+    print(
+        f"Finished inference on split='{split}' | samples={total_samples} | "
+        f"average_loss={total_loss / total_samples:.6f}"
+    )
     return labels, probabilities, total_loss / total_samples
 
 
@@ -334,6 +375,27 @@ def infer_run_name(checkpoint_path: Path, run_name: str | None) -> str:
     if checkpoint_path.name in {"best.pt", "last.pt"} and checkpoint_path.parent.name:
         return checkpoint_path.parent.name
     return checkpoint_path.stem
+
+
+def build_run_tag(
+    split: str,
+    metric: str,
+    thresholds: list[float],
+    user_tag: str | None,
+) -> str:
+    """Build a unique subfolder tag for one threshold-tuning invocation."""
+    if user_tag is not None:
+        sanitized = user_tag.strip().replace(" ", "_")
+        if sanitized:
+            return sanitized
+
+    threshold_start = f"{thresholds[0]:.2f}".replace(".", "p")
+    threshold_end = f"{thresholds[-1]:.2f}".replace(".", "p")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return (
+        f"{split}_{metric}_thr{threshold_start}_to_{threshold_end}_"
+        f"n{len(thresholds)}_{timestamp}"
+    )
 
 
 if __name__ == "__main__":

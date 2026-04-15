@@ -101,6 +101,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Automatically compute positive-class weight from the train split.",
     )
+    parser.add_argument(
+        "--model-name",
+        type=str,
+        default="baseline_cnn",
+        help="Model architecture to train. Examples: baseline_cnn, wider_cnn.",
+    )
     return parser
 
 
@@ -123,6 +129,7 @@ def main() -> None:
         early_stopping_min_delta=args.early_stopping_min_delta,
         pos_weight=args.pos_weight,
         auto_pos_weight=args.auto_pos_weight,
+        model_name=args.model_name,
     )
 
 

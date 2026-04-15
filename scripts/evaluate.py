@@ -54,6 +54,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=PROJECT_ROOT / "artifacts" / "metrics",
         help="Parent directory for run-specific evaluation metrics folders.",
     )
+    parser.add_argument(
+        "--model-name",
+        type=str,
+        default="baseline_cnn",
+        help="Model architecture to evaluate. Examples: baseline_cnn, wider_cnn.",
+    )
     return parser
 
 
@@ -68,6 +74,7 @@ def main() -> None:
         num_workers=args.num_workers,
         run_name=args.run_name,
         metrics_dir=args.metrics_dir,
+        model_name=args.model_name,
     )
 
 

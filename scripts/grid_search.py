@@ -117,6 +117,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=["none"],
         help="Positive-class weights to include in the grid. Use numeric values or 'auto' or 'none'.",
     )
+    parser.add_argument(
+        "--model-name",
+        type=str,
+        default="baseline_cnn",
+        help="Model architecture to use for every run. Examples: baseline_cnn, wider_cnn.",
+    )
     return parser
 
 
@@ -169,6 +175,7 @@ def main() -> None:
                 early_stopping_min_delta=args.early_stopping_min_delta,
                 pos_weight=pos_weight_spec["value"],
                 auto_pos_weight=pos_weight_spec["mode"] == "auto",
+                model_name=args.model_name,
             )
             evaluation_results = run_evaluation(
                 manifest_path=args.manifest_path,
@@ -177,6 +184,7 @@ def main() -> None:
                 num_workers=args.num_workers,
                 run_name=run_name,
                 metrics_dir=args.metrics_dir,
+                model_name=args.model_name,
             )
 
         records.append(
@@ -189,6 +197,7 @@ def main() -> None:
                 "pos_weight_effective": history.get("pos_weight"),
                 "epochs_requested": int(args.epochs),
                 "seed": int(args.seed),
+                "model_name": args.model_name,
                 "best_epoch": history.get("best_epoch"),
                 "best_val_loss": history.get("best_val_loss"),
                 "test_loss": evaluation_results.get("loss"),

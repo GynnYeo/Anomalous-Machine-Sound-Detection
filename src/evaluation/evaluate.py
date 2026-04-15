@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 from src.data.dataset import MIMIIDataset
 from src.data.transforms import BaselineLogMelTransform
 from src.evaluation.metrics import compute_binary_classification_metrics
-from src.models.cnn_baseline import BaselineCNN
+from src.models.registry import build_model
 from src.training.callbacks import load_checkpoint, save_json
 from src.training.losses import build_baseline_loss
 from src.training.train import select_device
@@ -25,6 +25,7 @@ def run_evaluation(
     num_workers: int = 0,
     run_name: str | None = None,
     metrics_dir: str | Path = "artifacts/metrics",
+    model_name: str = "baseline_cnn",
 ) -> dict[str, Any]:
     """Evaluate the best checkpoint on the saved test split and persist metrics."""
     if batch_size < 1:
@@ -54,7 +55,7 @@ def run_evaluation(
         pin_memory=device.type == "cuda",
     )
 
-    model = BaselineCNN().to(device)
+    model = build_model(model_name).to(device)
     criterion = build_baseline_loss()
 
     checkpoint = load_checkpoint(checkpoint_file, map_location=device)
@@ -109,6 +110,7 @@ def run_evaluation(
         "split": "test",
         "device": device.type,
         "num_samples": total_samples,
+        "model_name": model_name,
         "loss": total_loss / total_samples,
         "accuracy": metrics["accuracy"],
         "precision": metrics["precision"],
