@@ -7,10 +7,12 @@ from typing import Final
 from torch import nn
 
 from src.models.cnn_baseline import BaselineCNN
+from src.models.cnn_deeper import DeeperCNN
 from src.models.cnn_wider import WiderCNN
 
 AVAILABLE_MODELS: Final[dict[str, type[nn.Module]]] = {
     "baseline_cnn": BaselineCNN,
+    "deeper_cnn": DeeperCNN,
     "wider_cnn": WiderCNN,
 }
 

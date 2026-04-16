@@ -1,4 +1,4 @@
-"""Lightweight plotting helpers for baseline training and evaluation artifacts."""
+"""Plotting helpers for training, evaluation, and experiment-summary artifacts."""
 
 from __future__ import annotations
 
@@ -84,16 +84,108 @@ def plot_confusion_matrix(
     return _save_figure(figure, output_path)
 
 
-def load_json(path: str | Path) -> dict[str, Any]:
-    """Load a JSON object from disk."""
+def plot_grid_search_metric(
+    rows: list[dict[str, Any]],
+    output_path: str | Path,
+    *,
+    metric: str = "recall",
+    top_k: int = 8,
+) -> Path:
+    """Plot a horizontal bar chart comparing the top grid-search runs by one metric."""
+    if not rows:
+        raise ValueError("Grid-search summary must contain at least one row.")
+
+    filtered_rows = [row for row in rows if metric in row]
+    if not filtered_rows:
+        raise KeyError(f"Grid-search summary rows do not contain metric '{metric}'.")
+
+    ranked_rows = sorted(
+        filtered_rows,
+        key=lambda row: float(row[metric]),
+        reverse=True,
+    )[:top_k]
+    ranked_rows.reverse()
+
+    labels = [row.get("run_name", f"run_{index}") for index, row in enumerate(ranked_rows)]
+    values = [float(row[metric]) for row in ranked_rows]
+
+    figure_height = max(4.5, 0.6 * len(ranked_rows) + 1.5)
+    figure, axis = plt.subplots(figsize=(10, figure_height))
+    bars = axis.barh(labels, values, color="steelblue")
+    axis.set_title(f"Top Grid-Search Runs by {metric}")
+    axis.set_xlabel(metric)
+    axis.set_xlim(0.0, min(1.05, max(values) + 0.05))
+    axis.grid(True, axis="x", linestyle="--", alpha=0.4)
+
+    for bar, value in zip(bars, values):
+        axis.text(
+            value + 0.005,
+            bar.get_y() + bar.get_height() / 2.0,
+            f"{value:.4f}",
+            va="center",
+            fontsize=9,
+        )
+
+    figure.tight_layout()
+    return _save_figure(figure, output_path)
+
+
+def plot_threshold_tradeoff(
+    rows: list[dict[str, Any]],
+    output_path: str | Path,
+    *,
+    selected_threshold: float | None = None,
+) -> Path:
+    """Plot precision, recall, and F1 across a threshold sweep."""
+    if not rows:
+        raise ValueError("Threshold summary must contain at least one row.")
+
+    required_keys = {"threshold", "precision", "recall", "f1"}
+    for index, row in enumerate(rows):
+        missing_keys = required_keys.difference(row)
+        if missing_keys:
+            raise ValueError(
+                f"Threshold summary row {index} is missing required keys: "
+                f"{', '.join(sorted(missing_keys))}."
+            )
+
+    sorted_rows = sorted(rows, key=lambda row: float(row["threshold"]))
+    thresholds = [float(row["threshold"]) for row in sorted_rows]
+    precision = [float(row["precision"]) for row in sorted_rows]
+    recall = [float(row["recall"]) for row in sorted_rows]
+    f1 = [float(row["f1"]) for row in sorted_rows]
+
+    figure, axis = plt.subplots(figsize=(9, 5.5))
+    axis.plot(thresholds, precision, marker="o", label="precision")
+    axis.plot(thresholds, recall, marker="o", label="recall")
+    axis.plot(thresholds, f1, marker="o", label="f1")
+
+    if selected_threshold is not None:
+        axis.axvline(
+            selected_threshold,
+            color="black",
+            linestyle="--",
+            linewidth=1.2,
+            label=f"selected threshold = {selected_threshold:.2f}",
+        )
+
+    axis.set_title("Threshold Sweep Trade-Off")
+    axis.set_xlabel("Threshold")
+    axis.set_ylabel("Score")
+    axis.set_ylim(0.0, 1.05)
+    axis.grid(True, linestyle="--", alpha=0.4)
+    axis.legend()
+    figure.tight_layout()
+    return _save_figure(figure, output_path)
+
+
+def load_json(path: str | Path) -> Any:
+    """Load a JSON value from disk."""
     resolved_path = Path(path).expanduser().resolve()
     if not resolved_path.exists():
         raise FileNotFoundError(f"JSON file does not exist: '{resolved_path}'.")
     with resolved_path.open("r", encoding="utf-8") as file:
-        payload = json.load(file)
-    if not isinstance(payload, dict):
-        raise ValueError(f"Expected a JSON object in '{resolved_path}'.")
-    return payload
+        return json.load(file)
 
 
 def _extract_epoch_records(history: dict[str, Any]) -> list[dict[str, Any]]:
