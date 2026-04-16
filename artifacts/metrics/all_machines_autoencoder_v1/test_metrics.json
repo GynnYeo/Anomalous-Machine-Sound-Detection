@@ -1,0 +1,25 @@
+{
+  "run_name": "all_machines_autoencoder_v1",
+  "manifest_path": "data/splits/all_machines_split_seed42.csv",
+  "checkpoint_path": "artifacts/checkpoints/all_machines_autoencoder_v1/best.pt",
+  "threshold_source": "validation_best_f1",
+  "threshold": 3.829547643661499,
+  "split": "test",
+  "num_samples": 9116,
+  "accuracy": 0.19197016235190872,
+  "precision": 0.19187135147042625,
+  "recall": 0.9836250705815923,
+  "f1": 0.3211059907834101,
+  "confusion_matrix": [
+    [
+      8,
+      7337
+    ],
+    [
+      29,
+      1742
+    ]
+  ],
+  "roc_auc": 0.5035741096148946,
+  "metrics_path": "artifacts/metrics/all_machines_autoencoder_v1/test_metrics.json"
+}
