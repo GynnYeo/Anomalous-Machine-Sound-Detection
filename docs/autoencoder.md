@@ -213,5 +213,221 @@ The autoencoder experiment extends the project from supervised binary classifica
 
 This experiment keeps the existing data split and preprocessing pipeline fixed, making it a controlled comparison against the established CNN baseline. Whether or not it outperforms the CNN, the autoencoder branch provides useful insight into how well normal-only reconstruction can separate abnormal machine sounds in the MIMII dataset.
 
+
+## Autoencoder Experiment Results and Roadblock
+
+### Experiment run
+
+After implementing the convolutional autoencoder pipeline, the experiment was run using the all-machine split:
+
+```bash
+python scripts/train_autoencoder.py \
+  --manifest-path data/splits/all_machines_split_seed42.csv \
+  --epochs 20 \
+  --batch-size 32 \
+  --learning-rate 1e-3 \
+  --seed 42 \
+  --run-name all_machines_autoencoder_v1
+````
+
+The trained model was then evaluated using:
+
+```bash
+python scripts/evaluate_autoencoder.py \
+  --manifest-path data/splits/all_machines_split_seed42.csv \
+  --checkpoint-path artifacts/checkpoints/all_machines_autoencoder_v1/best.pt \
+  --batch-size 32 \
+  --run-name all_machines_autoencoder_v1
 ```
+
+The configuration for this experiment was:
+
+| Component        | Setting                                      |
+| ---------------- | -------------------------------------------- |
+| Split            | `data/splits/all_machines_split_seed42.csv`  |
+| Model            | Convolutional autoencoder                    |
+| Input            | Log-mel spectrogram `[1, 64, 313]`           |
+| Training data    | Normal samples from the train split only     |
+| Validation data  | Normal + abnormal validation samples         |
+| Test data        | Normal + abnormal test samples               |
+| Loss             | `MSELoss`                                    |
+| Optimizer        | Adam                                         |
+| Learning rate    | `1e-3`                                       |
+| Batch size       | `32`                                         |
+| Epochs           | `20`                                         |
+| Threshold method | Validation-selected reconstruction threshold |
+
+### Training behavior
+
+The autoencoder did learn to reduce reconstruction loss during training. This is important because it suggests that the training loop itself was not completely broken.
+
+The training loss decreased substantially over the run, from a high initial reconstruction loss to a much lower final loss. The validation loss also decreased over time. This means the encoder and decoder were able to learn a reconstruction function for the log-mel spectrogram inputs.
+
+However, reducing reconstruction loss is not the same as solving anomaly detection. For this method to work well, abnormal samples must produce noticeably higher reconstruction error than normal samples. The main issue observed in this experiment was that this separation did not happen clearly.
+
+### Test results
+
+The final autoencoder test results were:
+
+| Metric    |   Result |
+| --------- | -------: |
+| Accuracy  | `0.1920` |
+| Precision | `0.1919` |
+| Recall    | `0.9836` |
+| F1        | `0.3211` |
+| ROC-AUC   | `0.5036` |
+
+The confusion matrix was:
+
+```text
+TN = 8
+FP = 7337
+FN = 29
+TP = 1742
 ```
+
+This result shows that the model predicted almost every test sample as abnormal. The very high recall means that most abnormal samples were detected, but this happened because the model also incorrectly flagged almost all normal samples as abnormal.
+
+The ROC-AUC of approximately `0.50` is the most important result. A ROC-AUC near `0.50` means the reconstruction error was almost random as an anomaly score. In other words, the model was not reliably assigning higher reconstruction error to abnormal samples than to normal samples.
+
+### Reconstruction error analysis
+
+To investigate the poor result, reconstruction error summaries were added for normal and abnormal samples.
+
+Validation reconstruction error summary:
+
+| Class    |  Count |     Mean |   Median |      p95 |      p99 |
+| -------- | -----: | -------: | -------: | -------: | -------: |
+| Normal   | `7374` | `5.0284` | `4.8757` | `6.9412` | `7.8878` |
+| Abnormal | `1529` | `5.1399` | `4.6521` | `7.4257` | `8.6149` |
+
+Test reconstruction error summary:
+
+| Class    |  Count |     Mean |   Median |      p95 |      p99 |
+| -------- | -----: | -------: | -------: | -------: | -------: |
+| Normal   | `7345` | `5.4720` | `5.1133` | `7.8896` | `8.8137` |
+| Abnormal | `1771` | `5.6371` | `5.0856` | `8.4840` | `9.5855` |
+
+These summaries show the main roadblock clearly. Although abnormal samples had a slightly higher mean reconstruction error, the difference was very small. The medians were almost the same, and in both validation and test, the abnormal median was actually slightly lower than the normal median.
+
+This means the reconstruction error distributions for normal and abnormal samples overlapped heavily. Therefore, there was no reliable threshold that could cleanly separate the two classes.
+
+### Threshold experiments
+
+The first evaluation used the validation threshold that maximized F1. This selected a very low threshold:
+
+```text
+threshold = 3.8295
+```
+
+This threshold was below the reconstruction error of most normal test samples, so almost all samples were predicted as abnormal. This led to very high recall but extremely poor precision and accuracy.
+
+To check whether the issue was only caused by the threshold selection method, two additional threshold strategies were tested using only normal validation reconstruction errors:
+
+| Threshold strategy    | Threshold | Accuracy | Precision |   Recall |       F1 |
+| --------------------- | --------: | -------: | --------: | -------: | -------: |
+| Validation best F1    |  `3.8295` | `0.1920` |  `0.1919` | `0.9836` | `0.3211` |
+| Normal validation p95 |  `6.9412` | `0.7207` |  `0.2681` | `0.2530` | `0.2603` |
+| Normal validation p99 |  `7.8878` | `0.7876` |  `0.3565` | `0.1158` | `0.1748` |
+
+The percentile thresholds reduced the number of false positives, so accuracy increased. However, recall dropped heavily because many abnormal samples also had reconstruction errors within the normal range.
+
+This confirmed that the poor result was not only caused by a bad threshold. The deeper problem was that reconstruction error itself was not a strong anomaly score in this setup.
+
+### Why this became a roadblock
+
+This experiment reached a roadblock because the core assumption of reconstruction-based anomaly detection did not hold strongly enough.
+
+The assumption was:
+
+```text
+normal samples   → low reconstruction error
+abnormal samples → high reconstruction error
+```
+
+However, the observed behavior was closer to:
+
+```text
+normal samples   → reconstruction error around 5
+abnormal samples → reconstruction error around 5
+```
+
+Since normal and abnormal reconstruction errors were very similar, changing the threshold could only trade one type of error for another:
+
+* low threshold: catches abnormalities but falsely flags many normal samples
+* high threshold: avoids false alarms but misses most abnormalities
+
+The ROC-AUC near `0.50` showed that no threshold would produce strong performance because the ranking of samples by reconstruction error was almost random.
+
+### Possible reasons for the roadblock
+
+Several factors may explain why the autoencoder did not perform well.
+
+#### 1. Abnormal samples may still be easy to reconstruct
+
+Even though the autoencoder was trained only on normal samples, abnormal log-mel spectrograms may still share enough structure with normal spectrograms that the decoder can reconstruct them reasonably well.
+
+If abnormal sounds are visually similar to normal sounds in log-mel space, reconstruction error may not increase much.
+
+#### 2. The autoencoder may generalize too broadly
+
+The model may have learned a general reconstruction function rather than a narrow model of normality. If the encoder-decoder architecture is powerful enough, it can reconstruct many spectrogram-like inputs, including abnormal ones.
+
+This weakens the usefulness of reconstruction error for anomaly detection.
+
+#### 3. Mean MSE may dilute localized abnormal patterns
+
+The anomaly score used in this experiment was the mean squared error across the entire spectrogram:
+
+```text
+reconstruction_error = mean((input - reconstruction)^2)
+```
+
+If abnormal information appears only in a small region of the time-frequency representation, averaging over the whole spectrogram may dilute the signal. Most of the spectrogram may still reconstruct well, causing the final average error to remain similar to normal samples.
+
+#### 4. The all-machine setup may be too broad
+
+This experiment trained one autoencoder across all machine types. Normal sounds from fans, pumps, sliders, and valves can be very different from each other. As a result, the autoencoder may have learned a broad normal reconstruction space.
+
+A broader normal space makes it harder for abnormal samples to appear unusual based only on reconstruction error.
+
+#### 5. Reconstruction quality is not the same as classification usefulness
+
+The supervised CNN baseline learns directly from class labels, so it can focus on features that separate normal and abnormal samples. The autoencoder only learns to reconstruct inputs. A feature that is useful for classification may not necessarily produce a large reconstruction error.
+
+This explains why the supervised CNN can perform strongly while the autoencoder performs poorly.
+
+### Decision to stop this branch
+
+At this stage, the autoencoder branch was stopped instead of continuing with more variations.
+
+This was a deliberate decision. The goal of the autoencoder experiment was to test whether a simple reconstruction-based anomaly detection approach would be promising under the current pipeline. The first result showed that the basic version did not produce a useful anomaly score.
+
+Possible future improvements could include:
+
+* training separate autoencoders per machine type
+* using a smaller bottleneck
+* trying `L1Loss` instead of `MSELoss`
+* using top-k reconstruction error instead of mean reconstruction error
+* using denoising autoencoders
+* using a stricter anomaly detection setup
+
+However, these would each introduce additional experimental branches. Since the current project already has a strong supervised CNN baseline, and since the first autoencoder result showed near-random anomaly ranking, continuing this branch was considered lower priority.
+
+### Takeaway
+
+The autoencoder experiment was useful even though the result was poor.
+
+It showed that a basic convolutional autoencoder trained on normal log-mel spectrograms was able to learn reconstruction, but reconstruction error did not meaningfully separate normal and abnormal machine sounds in the all-machine setting.
+
+The main takeaway is:
+
+```text
+The autoencoder did not fail because it could not reconstruct.
+It failed because reconstruction error was not discriminative enough for anomaly detection.
+```
+
+Compared with the supervised CNN baseline, the autoencoder was much weaker. This suggests that, for the current split, preprocessing, and dataset setup, supervised classification is a more effective approach than simple reconstruction-based anomaly detection.
+
+This result is still valuable because it documents a tested alternative method and explains why the project should not continue investing in this direction without a more substantial redesign of the autoencoder approach.
+
