@@ -20,7 +20,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from src.data.dataset import MIMIIDataset
 from src.data.transforms import BaselineLogMelTransform
 from src.evaluation.metrics import compute_binary_classification_metrics
-from src.models.cnn_baseline import BaselineCNN
+from src.models.registry import build_model
 from src.training.callbacks import load_checkpoint, save_json
 from src.training.losses import build_baseline_loss
 from src.training.train import select_device
@@ -100,6 +100,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Also evaluate the selected threshold on the test split and save the result.",
     )
+    parser.add_argument(
+        "--model-name",
+        type=str,
+        default="baseline_cnn",
+        help="Model architecture to analyze. Examples: baseline_cnn, deeper_cnn, wider_cnn.",
+    )
     return parser
 
 
@@ -132,6 +138,7 @@ def main() -> None:
         batch_size=args.batch_size,
         num_workers=args.num_workers,
         device=device,
+        model_name=args.model_name,
     )
 
     records = build_threshold_records(
@@ -184,6 +191,7 @@ def main() -> None:
             batch_size=args.batch_size,
             num_workers=args.num_workers,
             device=device,
+            model_name=args.model_name,
         )
         test_record = build_threshold_records(
             labels=test_labels,
@@ -238,6 +246,7 @@ def collect_split_outputs(
     batch_size: int,
     num_workers: int,
     device: torch.device,
+    model_name: str,
 ) -> tuple[list[int], list[float], float]:
     """Run inference on one split and return labels, probabilities, and average loss."""
     print(f"Loading '{split}' dataset from manifest '{Path(manifest_path).expanduser().resolve()}'...")
@@ -261,7 +270,7 @@ def collect_split_outputs(
         f"batch_size={batch_size} | batches={total_batches}"
     )
 
-    model = BaselineCNN().to(device)
+    model = build_model(model_name).to(device)
     checkpoint = load_checkpoint(checkpoint_path, map_location=device)
     model.load_state_dict(checkpoint["model_state_dict"])
     criterion = build_baseline_loss()

@@ -1,4 +1,4 @@
-"""CLI entry point for baseline CNN training."""
+"""CLI entry point for training the available CNN classifiers."""
 
 from __future__ import annotations
 
@@ -14,9 +14,9 @@ from src.training.train import run_training
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """Create CLI arguments for baseline training."""
+    """Create CLI arguments for classifier training."""
     parser = argparse.ArgumentParser(
-        description="Train the baseline CNN on a saved MIMII split manifest."
+        description="Train a CNN classifier on a saved MIMII split manifest."
     )
     parser.add_argument(
         "--manifest-path",
@@ -105,13 +105,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--model-name",
         type=str,
         default="baseline_cnn",
-        help="Model architecture to train. Examples: baseline_cnn, wider_cnn.",
+        help="Model architecture to train. Examples: baseline_cnn, deeper_cnn, wider_cnn.",
     )
     return parser
 
 
 def main() -> None:
-    """Parse CLI args and launch the reusable baseline training pipeline."""
+    """Parse CLI args and launch the reusable training pipeline."""
     args = build_parser().parse_args()
 
     run_training(

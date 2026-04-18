@@ -1,4 +1,4 @@
-"""CLI entry point for baseline test-set evaluation."""
+"""CLI entry point for test-set evaluation of the available CNN classifiers."""
 
 from __future__ import annotations
 
@@ -14,9 +14,9 @@ from src.evaluation.evaluate import run_evaluation
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """Create CLI arguments for baseline evaluation."""
+    """Create CLI arguments for classifier evaluation."""
     parser = argparse.ArgumentParser(
-        description="Evaluate the baseline CNN on the test split using a saved checkpoint."
+        description="Evaluate a saved CNN checkpoint on the test split."
     )
     parser.add_argument(
         "--manifest-path",
@@ -58,13 +58,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--model-name",
         type=str,
         default="baseline_cnn",
-        help="Model architecture to evaluate. Examples: baseline_cnn, wider_cnn.",
+        help="Model architecture to evaluate. Examples: baseline_cnn, deeper_cnn, wider_cnn.",
     )
     return parser
 
 
 def main() -> None:
-    """Parse CLI args and launch reusable baseline evaluation."""
+    """Parse CLI args and launch reusable evaluation."""
     args = build_parser().parse_args()
 
     run_evaluation(

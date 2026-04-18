@@ -1,4 +1,4 @@
-"""CLI entry point for baseline training/evaluation result plots."""
+"""CLI entry point for training, evaluation, and experiment-summary plots."""
 
 from __future__ import annotations
 
@@ -21,9 +21,9 @@ from src.evaluation.plots import (
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """Create CLI arguments for baseline plotting."""
+    """Create CLI arguments for plot generation from saved artifacts."""
     parser = argparse.ArgumentParser(
-        description="Generate baseline training curves and confusion matrix plots."
+        description="Generate plots from saved training, evaluation, grid-search, or threshold-tuning artifacts."
     )
     parser.add_argument(
         "--history-path",
