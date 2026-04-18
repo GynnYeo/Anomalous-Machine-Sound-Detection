@@ -1,0 +1,52 @@
+{
+  "run_name": "all_machines_deeper_cnn",
+  "run_tag": "deeper_final_threshold_0p42",
+  "manifest_path": "data\\splits\\all_machines_split_seed42.csv",
+  "checkpoint_path": "artifacts\\checkpoints\\all_machines_deeper_cnn\\best.pt",
+  "tuned_split": "val",
+  "selection_metric": "recall",
+  "selected_threshold": 0.42,
+  "selected_metrics": {
+    "accuracy": 0.9932606986409076,
+    "precision": 0.973565441650548,
+    "recall": 0.9875735775016351,
+    "f1": 0.9805194805194806,
+    "roc_auc": 0.9994805250555086,
+    "loss": 0.018310714106482613,
+    "confusion_matrix": [
+      [
+        7333,
+        41
+      ],
+      [
+        19,
+        1510
+      ]
+    ]
+  },
+  "threshold_summary_csv": "artifacts\\threshold_tuning\\all_machines_deeper_cnn\\deeper_final_threshold_0p42\\val_threshold_summary.csv",
+  "threshold_summary_json": "artifacts\\threshold_tuning\\all_machines_deeper_cnn\\deeper_final_threshold_0p42\\val_threshold_summary.json",
+  "test_metrics_path": "artifacts\\threshold_tuning\\all_machines_deeper_cnn\\deeper_final_threshold_0p42\\selected_threshold_test_metrics.json",
+  "test_metrics": {
+    "run_name": "all_machines_deeper_cnn",
+    "checkpoint_path": "artifacts\\checkpoints\\all_machines_deeper_cnn\\best.pt",
+    "threshold": 0.42,
+    "split": "test",
+    "loss": 0.03619594720767384,
+    "accuracy": 0.9877139096094778,
+    "precision": 0.9545205479452055,
+    "recall": 0.9836250705815923,
+    "f1": 0.9688542825361512,
+    "roc_auc": 0.9986389139909725,
+    "confusion_matrix": [
+      [
+        7262,
+        83
+      ],
+      [
+        29,
+        1742
+      ]
+    ]
+  }
+}

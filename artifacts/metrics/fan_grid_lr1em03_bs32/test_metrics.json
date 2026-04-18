@@ -1,0 +1,25 @@
+{
+  "run_name": "fan_grid_lr1em03_bs32",
+  "manifest_path": "data\\splits\\fan_split_seed42.csv",
+  "checkpoint_path": "artifacts\\checkpoints\\fan_grid_lr1em03_bs32\\best.pt",
+  "split": "test",
+  "device": "cpu",
+  "num_samples": 2799,
+  "loss": 0.06570040105275927,
+  "accuracy": 0.9785637727759914,
+  "precision": 0.9664429530201343,
+  "recall": 0.9536423841059603,
+  "f1": 0.9600000000000001,
+  "confusion_matrix": [
+    [
+      2019,
+      25
+    ],
+    [
+      35,
+      720
+    ]
+  ],
+  "metrics_path": "artifacts\\metrics\\fan_grid_lr1em03_bs32\\test_metrics.json",
+  "roc_auc": 0.9961982089397493
+}
