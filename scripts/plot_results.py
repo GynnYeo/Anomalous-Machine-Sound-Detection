@@ -49,36 +49,6 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Optional run name override for the plot output folder.",
     )
-    parser.add_argument(
-        "--grid-summary-path",
-        type=Path,
-        default=None,
-        help="Optional path to a saved grid-search summary JSON file.",
-    )
-    parser.add_argument(
-        "--grid-metric",
-        type=str,
-        default="recall",
-        help="Metric to plot from the grid-search summary.",
-    )
-    parser.add_argument(
-        "--grid-top-k",
-        type=int,
-        default=8,
-        help="Number of top grid-search runs to include in the summary plot.",
-    )
-    parser.add_argument(
-        "--threshold-summary-path",
-        type=Path,
-        default=None,
-        help="Optional path to a saved threshold summary JSON file.",
-    )
-    parser.add_argument(
-        "--selected-threshold-path",
-        type=Path,
-        default=None,
-        help="Optional path to a selected-threshold JSON file used to mark the chosen threshold.",
-    )
     return parser
 
 
@@ -128,32 +98,6 @@ def main() -> None:
             plot_confusion_matrix(confusion_matrix, curves_run_dir / "confusion_matrix.png")
         )
 
-    if args.grid_summary_path is not None:
-        grid_rows = load_json(args.grid_summary_path)
-        if not isinstance(grid_rows, list):
-            raise ValueError(f"Expected a JSON array in '{args.grid_summary_path}'.")
-        generated_paths.append(
-            plot_grid_search_metric(
-                grid_rows,
-                curves_run_dir / f"grid_search_{args.grid_metric}.png",
-                metric=args.grid_metric,
-                top_k=args.grid_top_k,
-            )
-        )
-
-    if args.threshold_summary_path is not None:
-        threshold_rows = load_json(args.threshold_summary_path)
-        if not isinstance(threshold_rows, list):
-            raise ValueError(f"Expected a JSON array in '{args.threshold_summary_path}'.")
-        selected_threshold = _load_selected_threshold(args.selected_threshold_path)
-        generated_paths.append(
-            plot_threshold_tradeoff(
-                threshold_rows,
-                curves_run_dir / "threshold_tradeoff.png",
-                selected_threshold=selected_threshold,
-            )
-        )
-
     print("Generated plots:")
     for path in generated_paths:
         print(f"  {path}")
@@ -179,38 +123,6 @@ def _infer_run_name(
     if threshold_summary_path is not None:
         return threshold_summary_path.expanduser().resolve().parent.name
     return "baseline_run"
-
-
-def _load_selected_threshold(path: Path | None) -> float | None:
-    """Return the selected threshold value when a sidecar JSON file is provided."""
-    if path is None:
-        return None
-    payload = load_json(path)
-    if not isinstance(payload, dict):
-        raise ValueError(f"Expected a JSON object in '{path}'.")
-    threshold_value = payload.get("threshold", payload.get("selected_threshold"))
-    if threshold_value is None:
-        raise KeyError(
-            f"Selected-threshold file '{path}' is missing key "
-            "'threshold' or 'selected_threshold'."
-        )
-    return float(threshold_value)
-
-
-def _resolve_output_dir(curves_dir: Path, run_name: str) -> Path:
-    """Create the requested output directory, falling back when Windows ACLs block artifacts."""
-    requested_dir = curves_dir.expanduser().resolve() / run_name
-    try:
-        requested_dir.mkdir(parents=True, exist_ok=True)
-        return requested_dir
-    except PermissionError:
-        fallback_dir = (PROJECT_ROOT / "report_figures" / run_name).resolve()
-        fallback_dir.mkdir(parents=True, exist_ok=True)
-        print(
-            "Warning: could not write under the requested curves directory. "
-            f"Falling back to '{fallback_dir}'."
-        )
-        return fallback_dir
 
 
 if __name__ == "__main__":
