@@ -121,7 +121,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--model-name",
         type=str,
         default="baseline_cnn",
-        help="Model architecture to use for every run. Examples: baseline_cnn, wider_cnn.",
+        help="Model architecture to use for every run. Examples: baseline_cnn, deeper_cnn, wider_cnn.",
     )
     return parser
 

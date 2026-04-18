@@ -1,0 +1,26 @@
+{
+  "run_name": "all_machines_deeper_cnn",
+  "manifest_path": "data\\splits\\all_machines_split_seed42.csv",
+  "checkpoint_path": "artifacts\\checkpoints\\all_machines_deeper_cnn\\best.pt",
+  "split": "test",
+  "device": "cpu",
+  "num_samples": 9116,
+  "model_name": "deeper_cnn",
+  "loss": 0.03619594720767384,
+  "accuracy": 0.9894690653795525,
+  "precision": 0.9660545353366722,
+  "recall": 0.9802371541501976,
+  "f1": 0.9730941704035875,
+  "confusion_matrix": [
+    [
+      7284,
+      61
+    ],
+    [
+      35,
+      1736
+    ]
+  ],
+  "metrics_path": "artifacts\\metrics\\all_machines_deeper_cnn\\test_metrics.json",
+  "roc_auc": 0.9986389139909725
+}

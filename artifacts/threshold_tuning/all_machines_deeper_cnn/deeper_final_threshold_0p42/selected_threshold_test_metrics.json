@@ -1,0 +1,22 @@
+{
+  "run_name": "all_machines_deeper_cnn",
+  "checkpoint_path": "artifacts\\checkpoints\\all_machines_deeper_cnn\\best.pt",
+  "threshold": 0.42,
+  "split": "test",
+  "loss": 0.03619594720767384,
+  "accuracy": 0.9877139096094778,
+  "precision": 0.9545205479452055,
+  "recall": 0.9836250705815923,
+  "f1": 0.9688542825361512,
+  "roc_auc": 0.9986389139909725,
+  "confusion_matrix": [
+    [
+      7262,
+      83
+    ],
+    [
+      29,
+      1742
+    ]
+  ]
+}
