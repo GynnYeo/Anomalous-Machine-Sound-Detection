@@ -40,7 +40,7 @@ Expected outputs:
 
 ### 2. Train a model
 
-The baseline training pipeline is driven by `scripts/train.py`.
+The training pipeline is driven by `scripts/train.py`.
 
 Example:
 
@@ -50,14 +50,15 @@ python scripts/train.py \
   --epochs 10 \
   --batch-size 16 \
   --learning-rate 1e-3 \
-  --run-name fan_baseline
+  --run-name fan_baseline \
+  --model-name baseline_cnn
 ```
 
 This will:
 
 * load the saved `train` and `val` splits from the manifest
-* apply the baseline log-mel preprocessing on the fly
-* train the baseline CNN using mini-batches
+* apply log-mel preprocessing on the fly
+* train the selected CNN model using mini-batches
 * validate every epoch
 * save:
 
@@ -65,12 +66,78 @@ This will:
   * `last.pt` every epoch for resume/recovery
 * save training history for later plotting
 
-Current device priority:
+#### Model selection
+
+You can select different CNN architectures using `--model-name`:
+
+* `baseline_cnn` (default)
+* `deeper_cnn`
+* `wider_cnn`
+
+Example:
+
+```bash
+python scripts/train.py \
+  --manifest-path data/splits/fan_split_seed42.csv \
+  --epochs 10 \
+  --run-name fan_deeper \
+  --model-name deeper_cnn
+```
+
+#### Handling class imbalance
+
+You can adjust the positive class weight:
+
+* Manual weighting:
+
+```bash
+--pos-weight 2.0
+```
+
+* Automatic weighting (computed from training split):
+
+```bash
+--auto-pos-weight
+```
+
+This modifies the binary cross-entropy loss used during training.
+
+#### Early stopping (optional)
+
+You can enable early stopping:
+
+```bash
+python scripts/train.py \
+  --manifest-path data/splits/fan_split_seed42.csv \
+  --epochs 30 \
+  --run-name fan_earlystop \
+  --early-stopping-patience 5 \
+  --early-stopping-min-delta 0.001
+```
+
+#### Resume training
+
+To resume training:
+
+```bash
+python scripts/train.py \
+  --manifest-path data/splits/fan_split_seed42.csv \
+  --epochs 20 \
+  --run-name fan_baseline \
+  --resume-from artifacts/checkpoints/fan_baseline/last.pt
+```
+
+This continues training from the saved checkpoint without restarting.
+
+#### Device priority
+
+Training uses:
+
 1. CUDA
 2. MPS
 3. CPU
 
-Example artifact layout:
+#### Example artifact layout
 
 ```text
 artifacts/
@@ -84,18 +151,6 @@ artifacts/
         └── run_config.json
 ```
 
-To resume training, use `--resume-from` and provide the path to a saved checkpoint, for example:
-```bash 
-python scripts/train.py \
-  --manifest-path data/splits/fan_split_seed42.csv \
-  --epochs 20 \
-  --run-name fan_baseline \
-  --resume-from artifacts/checkpoints/fan_baseline/last.pt
-```
-This resumes training from the saved checkpoint and continues the run without restarting from epoch 1.
-
-
-
 ---
 
 ### 3. Evaluate a trained model
@@ -105,10 +160,10 @@ The evaluation pipeline is driven by `scripts/evaluate.py`.
 It:
 
 * loads the saved split manifest
-* creates the `test` dataset with the same baseline transform
-* loads the saved best checkpoint
+* creates the `test` dataset with the same preprocessing
+* loads the saved checkpoint
 * runs inference on the test split
-* computes baseline test metrics
+* computes evaluation metrics
 * saves the results to a metrics JSON file
 
 Example:
@@ -117,10 +172,11 @@ Example:
 python scripts/evaluate.py \
   --manifest-path data/splits/fan_split_seed42.csv \
   --checkpoint-path artifacts/checkpoints/fan_baseline/best.pt \
-  --run-name fan_baseline
+  --run-name fan_baseline \
+  --model-name baseline_cnn
 ```
 
-Baseline evaluation metrics:
+Evaluation metrics:
 
 * test loss
 * accuracy
@@ -130,7 +186,7 @@ Baseline evaluation metrics:
 * confusion matrix
 * ROC-AUC
 
-Example output artifact:
+Example output:
 
 ```text
 artifacts/metrics/fan_baseline/test_metrics.json
@@ -157,10 +213,79 @@ python scripts/plot_results.py \
   --run-name fan_baseline
 ```
 
-Example output artifacts:
+Example outputs:
 
 ```text
 artifacts/curves/fan_baseline/loss_curve.png
 artifacts/curves/fan_baseline/val_accuracy_curve.png
 artifacts/curves/fan_baseline/confusion_matrix.png
 ```
+
+---
+
+### 5. Extended experiments (optional)
+
+The repository also includes utilities for controlled experimentation beyond the baseline workflow.
+
+#### Grid search
+
+Run a small hyperparameter sweep:
+
+```bash
+python scripts/grid_search.py \
+  --manifest-path data/splits/fan_split_seed42.csv \
+  --run-prefix fan_grid \
+  --model-name baseline_cnn
+```
+
+This will:
+
+* train multiple configurations
+* evaluate each run
+* save a ranked summary
+
+#### Threshold tuning
+
+Tune classification threshold for a saved checkpoint:
+
+```bash
+python scripts/tune_threshold.py \
+  --manifest-path data/splits/fan_split_seed42.csv \
+  --checkpoint-path artifacts/checkpoints/fan_baseline/best.pt \
+  --metric recall \
+  --model-name baseline_cnn
+```
+
+This helps explore trade-offs between:
+
+* precision
+* recall
+* F1
+
+Additional plots supported:
+
+* grid search comparison plots
+* threshold trade-off curves
+
+---
+
+### Summary
+
+The baseline pipeline supports:
+
+* deterministic data splitting
+* CNN-based training and evaluation
+* reproducible saved artifacts
+* multiple model variants
+* class imbalance handling
+* early stopping
+* optional hyperparameter search
+* optional threshold tuning
+
+The recommended workflow remains:
+
+1. generate a split
+2. train a model
+3. evaluate the best checkpoint
+4. reproduce plots
+
