@@ -93,6 +93,32 @@ artifacts/metrics/fan_baseline/history.json
 
 ---
 
+## Reproduce the reported baseline result
+
+To reproduce a saved baseline result without retraining, run:
+
+```bash
+python scripts/evaluate.py \
+  --manifest-path data/splits/all_machines_split_seed42.csv \
+  --checkpoint-path artifacts/checkpoints/all_machines_baseline/best.pt \
+  --run-name all_machines_baseline
+```
+
+Then regenerate the plots with:
+
+```bash
+python scripts/plot_results.py \
+  --history-path artifacts/metrics/all_machines_baseline/history.json \
+  --metrics-path artifacts/metrics/all_machines_baseline/test_metrics.json \
+  --run-name all_machines_baseline
+```
+
+For the full reproducibility workflow, including placeholders for the final team model, see:
+
+* [Reproducibility guide](docs/reproducibility.md)
+
+---
+
 ## Features
 
 - PyTorch-based training pipeline
@@ -129,7 +155,12 @@ project_root/
 │   └── metrics/                 # saved training/evaluation metrics by run
 
 ├── docs/
-│   ├── autoencoder_usage.md     # autoencoder workflow guide
+│   ├── autoencoder_usage.md     # exploratory autoencoder workflow guide
+│   ├── baseline.md              # baseline model and pipeline design
+│   ├── baseline_usage.md        # baseline training / evaluation / plotting guide
+│   ├── data.md                  # dataset layout and split design
+│   ├── reproducibility.md       # exact result reproduction guide
+│   ├── setup.md                 # environment and dependency setup
 │   └── private/                 # private planning and experiment notes
 
 ├── scripts/

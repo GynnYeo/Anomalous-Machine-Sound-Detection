@@ -148,3 +148,4 @@ def _print_summary(results: dict[str, Any]) -> None:
     print(f"F1: {results['f1']:.4f}")
     if "roc_auc" in results:
         print(f"ROC-AUC: {results['roc_auc']:.4f}")
+    print(f"Saved metrics to: {results['metrics_path']}")
