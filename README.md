@@ -1,5 +1,9 @@
 # Anomalous-Machine-Sound-Detection
 
+Done by:
+- Yeo Yee Gynn (Student ID: 1008101) 
+- Hoon Kiah Yen (Student ID: 1008192) 
+
 ## Overview
 
 This project detects abnormal machine sounds from the MIMII dataset using deep learning in PyTorch.
