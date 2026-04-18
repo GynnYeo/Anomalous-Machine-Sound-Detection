@@ -79,6 +79,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Optional path to a selected-threshold JSON file used to mark the chosen threshold.",
     )
+    parser.add_argument(
+        "--selected-threshold",
+        type=float,
+        default=None,
+        help="Optional manual threshold value to highlight in threshold plots. Overrides --selected-threshold-path when provided.",
+    )
     return parser
 
 
@@ -145,7 +151,10 @@ def main() -> None:
         threshold_rows = load_json(args.threshold_summary_path)
         if not isinstance(threshold_rows, list):
             raise ValueError(f"Expected a JSON array in '{args.threshold_summary_path}'.")
-        selected_threshold = _load_selected_threshold(args.selected_threshold_path)
+        selected_threshold = _resolve_selected_threshold(
+            manual_threshold=args.selected_threshold,
+            selected_threshold_path=args.selected_threshold_path,
+        )
         generated_paths.append(
             plot_threshold_tradeoff(
                 threshold_rows,
@@ -181,17 +190,22 @@ def _infer_run_name(
     return "baseline_run"
 
 
-def _load_selected_threshold(path: Path | None) -> float | None:
-    """Return the selected threshold value when a sidecar JSON file is provided."""
-    if path is None:
+def _resolve_selected_threshold(
+    manual_threshold: float | None,
+    selected_threshold_path: Path | None,
+) -> float | None:
+    """Return the threshold to highlight, preferring an explicit CLI override."""
+    if manual_threshold is not None:
+        return float(manual_threshold)
+    if selected_threshold_path is None:
         return None
-    payload = load_json(path)
+    payload = load_json(selected_threshold_path)
     if not isinstance(payload, dict):
-        raise ValueError(f"Expected a JSON object in '{path}'.")
+        raise ValueError(f"Expected a JSON object in '{selected_threshold_path}'.")
     threshold_value = payload.get("threshold", payload.get("selected_threshold"))
     if threshold_value is None:
         raise KeyError(
-            f"Selected-threshold file '{path}' is missing key "
+            f"Selected-threshold file '{selected_threshold_path}' is missing key "
             "'threshold' or 'selected_threshold'."
         )
     return float(threshold_value)
