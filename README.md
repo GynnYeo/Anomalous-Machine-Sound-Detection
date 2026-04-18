@@ -9,6 +9,88 @@ The goal is not only to build a working model, but to create a **reproducible ex
 - different model architectures
 - different hyperparameters
 
+For a deeper explanation of the model design and pipeline decisions, see:
+- [Baseline design documentation](docs/baseline.md)
+
+---
+
+## Setup
+
+Before running the project, please follow the setup instructions:
+
+- 🔧 [Setup guide](docs/setup.md)
+
+This includes:
+- Python environment setup
+- PyTorch and TorchAudio installation
+- dataset setup instructions
+
+---
+
+## Quick Start (Baseline Workflow)
+This project provides a reproducible baseline pipeline for abnormal machine sound detection.
+
+The commands below run the full baseline workflow end-to-end.
+
+
+For a detailed explanation of each step, see:
+- [Baseline usage guide](docs/baseline_usage.md)
+
+The baseline CNN workflow is the primary supported path in this repository.
+
+### Step 1 — Generate a split manifest
+```bash
+python scripts/make_splits.py --machine-type fan --seed 42
+```
+For details on how splits are constructed and why group-based splitting is used, see:
+- [Data and split design](docs/data.md)
+### Step 2 — Train the baseline model
+```bash
+python scripts/train.py \
+  --manifest-path data/splits/fan_split_seed42.csv \
+  --epochs 10 \
+  --batch-size 16 \
+  --learning-rate 1e-3 \
+  --run-name fan_baseline
+```
+For full training options and advanced usage (e.g. resume training), see:
+- [Baseline training guide](docs/baseline_usage.md)
+  
+### Step 3 — Evaluate the trained model
+```bash
+python scripts/evaluate.py \
+  --manifest-path data/splits/fan_split_seed42.csv \
+  --checkpoint-path artifacts/checkpoints/fan_baseline/best.pt \
+  --run-name fan_baseline
+```
+For details on evaluation metrics and implementation, see:
+- [Evaluation and metrics](docs/baseline_usage.md)
+### Step 4 — Generate plots
+```bash 
+python scripts/plot_results.py \
+  --history-path artifacts/metrics/fan_baseline/history.json \
+  --metrics-path artifacts/metrics/fan_baseline/test_metrics.json \
+  --run-name fan_baseline
+```
+For details on available plots and customization, see:
+- [Plotting and visualization](docs/baseline_usage.md)
+
+
+### Expected outputs
+The following artifacts will be generated:
+```text
+artifacts/checkpoints/fan_baseline/best.pt
+artifacts/metrics/fan_baseline/test_metrics.json
+artifacts/curves/fan_baseline/loss_curve.png
+artifacts/metrics/fan_baseline/history.json
+```
+
+## Where to go next
+
+- Want to understand the model? → [Baseline design](docs/baseline.md)
+- Want to modify training? → [Baseline usage](docs/baseline_usage.md)
+- Want to reproduce results exactly? → [Reproducibility guide](docs/reproducibility.md)
+
 ---
 
 ## Features
@@ -44,75 +126,67 @@ project_root/
 ├── artifacts/
 │   ├── checkpoints/             # saved model checkpoints by run
 │   ├── curves/                  # saved plots by run
-│   ├── logs/                    # optional run logs
 │   └── metrics/                 # saved training/evaluation metrics by run
 
-├── notebooks/                   # exploration/debugging notebooks only
+├── docs/
+│   ├── autoencoder_usage.md     # autoencoder workflow guide
+│   └── private/                 # private planning and experiment notes
 
 ├── scripts/
-│   ├── evaluate.py              # evaluate a saved checkpoint on the test split
-│   ├── make_splits.py           # create reproducible data splits
-│   ├── plot_results.py          # generate baseline plots from saved artifacts
-│   └── train.py                 # train the baseline model
+│   ├── check_preprocessing.py         # inspect preprocessing outputs on sample data
+│   ├── evaluate.py                    # evaluate a saved baseline checkpoint
+│   ├── evaluate_autoencoder.py        # evaluate a saved autoencoder checkpoint
+│   ├── make_splits.py                 # create reproducible data splits
+│   ├── plot_autoencoder_errors.py     # plot autoencoder reconstruction errors
+│   ├── plot_results.py                # generate baseline plots from saved artifacts
+│   ├── train.py                       # train the baseline CNN model
+│   └── train_autoencoder.py           # train the convolutional autoencoder
 
 ├── src/
+│   ├── __init__.py
+│   │
+│   ├── data/
+│   │   ├── __init__.py
+│   │   ├── dataset.py           # manifest-driven dataset loader
+│   │   ├── index_dataset.py     # dataset indexing helpers
+│   │   ├── split.py             # split creation/loading logic
+│   │   └── transforms.py        # dataset-facing preprocessing transforms
+│   │
 │   ├── evaluation/
 │   │   ├── evaluate.py          # reusable evaluation pipeline
-│   │   ├── metrics.py           # evaluation metric helpers
-│   │   └── plots.py             # plotting helpers
+│   │   ├── evaluate_autoencoder.py   # autoencoder evaluation pipeline
+│   │   ├── metrics.py                # metric helpers
+│   │   ├── plot_autoencoder.py       # autoencoder plotting helpers
+│   │   └── plots.py                  # baseline plotting helpers
+│   │
+│   ├── experiments/
+│   │   └── run_experiment.py    # experiment entry point / orchestration
 │   │
 │   ├── features/
 │   │   ├── spectrogram.py       # log-mel feature extraction
 │   │   └── waveform.py          # waveform preprocessing utilities
 │   │
-│   ├── data/
-│   │   ├── dataset.py           # manifest-driven dataset loader
-│   │   ├── index_dataset.py     # dataset indexing helpers
-│   │   ├── split.py             # split creation/loading logic
-│   │   └── transforms.py        # dataset-facing transforms
-│   │
 │   ├── models/
-│   │   └── cnn_baseline.py      # baseline CNN model
+│   │   ├── __init__.py
+│   │   ├── cnn_baseline.py      # baseline CNN classifier
+│   │   ├── conv_autoencoder.py  # convolutional autoencoder model
+│   │   └── registry.py          # model lookup / registration helpers
 │   │
 │   ├── training/
-│   │   ├── callbacks.py         # checkpoint/history helpers
-│   │   ├── losses.py            # baseline loss builder
-│   │   ├── train.py             # reusable training pipeline
-│   │   └── trainer.py           # epoch-level train/validation loops
+│   │   ├── __init__.py
+│   │   ├── autoencoder_trainer.py    # autoencoder training/validation loops
+│   │   ├── callbacks.py              # checkpoint/history helpers
+│   │   ├── losses.py                 # loss builders
+│   │   ├── train.py                  # baseline training pipeline
+│   │   ├── train_autoencoder.py      # autoencoder training pipeline
+│   │   └── trainer.py                # shared epoch-level train/validation loops
 │   │
 │   └── utils/
-│       ├── io.py
-│       ├── logging.py
-│       └── seed.py
-````
-
----
-
-## Data Layout
-
-Place the raw MIMII WAV files under `data/raw/`.
-
-Expected folder layout:
-
-```text
-data/raw/{snr_db}_{machine_type}/{machine_id}/{label}/*.wav
+│       ├── io.py                # path and filesystem helpers
+│       └── seed.py              # reproducibility helpers
 ```
-
-Example:
-
-```text
-data/raw/-6_dB_fan/id_00/normal/*.wav
-data/raw/-6_dB_fan/id_00/abnormal/*.wav
-data/raw/0_dB_pump/id_02/normal/*.wav
-data/raw/6_dB_valve/id_04/abnormal/*.wav
-```
-
-Notes:
-
-* Valid labels are `normal` and `abnormal`
-* The split/index pipeline reads metadata from the folder names, so keep this structure unchanged
-* `data/raw/` should contain the original audio files
-* Saved split manifests are written under `data/splits/`
+For a more detailed explanation of each module and its role, see:
+- [Project design and architecture](docs/baseline.md)
 
 ---
 
@@ -125,6 +199,9 @@ Notes:
 * Use notebooks for exploration only, not as the main pipeline
 * Prefer a stable baseline before adding more experiments
 
+For a deeper explanation of design decisions, see:
+- [Baseline design documentation](docs/baseline.md)
+
 ---
 
 ## Typical Workflow
@@ -136,373 +213,6 @@ Notes:
 5. Generate plots from saved history and evaluation artifacts
 6. Compare results across runs or machine types
 
----
-
-## Setup
-
-### 1. Create and activate a virtual environment
-
-macOS / Linux:
-
-```bash
-python3 -m venv venv
-source venv/bin/activate
-````
-
-Windows (PowerShell):
-
-```powershell
-python -m venv venv
-venv\Scripts\Activate.ps1
-```
-
-### 2. Install PyTorch and torchaudio first
-
-Install the PyTorch stack before installing the remaining project dependencies.
-
-Important notes:
-
-* `torch` and `torchaudio` must be installed as a **matching pair**
-* do **not** install `torchaudio` separately from a different source after installing `torch`
-* choose the install command from the official PyTorch selector for your platform and hardware
-
-#### Recommended option: CPU-only
-
-If you want the most reliable setup and do not specifically need GPU acceleration, use a CPU-only PyTorch install first.
-
-This is the safest option for reproducing the project across different machines.
-
-#### Optional option: GPU
-
-If you want GPU training, install the PyTorch stack using the correct command for your machine from the official PyTorch selector.
-
-Examples of hardware-specific options include:
-
-* CUDA (NVIDIA GPU)
-* ROCm
-* Apple Silicon / MPS
-
-Use the official selector to choose the correct command for your environment.
-
-### 3. Install the remaining project dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Linux audio backend note
-
-On some Linux systems, `torchaudio.load(...)` may fail if the required audio backend libraries are not available.
-
-If WAV loading fails, try:
-
-```bash
-pip install soundfile
-sudo apt update
-sudo apt install -y libsndfile1 ffmpeg
-```
-
-### 5. Recommended stable stack note
-
-This project was tested with a pre-TorchCodec audio-loading path to avoid recent TorchAudio / TorchCodec environment issues.
-
-If you encounter TorchCodec-related errors with newer TorchAudio versions, one practical workaround is to use a matching `torch` + `torchaudio` 2.8.x stack instead of moving immediately to TorchAudio 2.9+.
-
-### 6. Download dataset
-
-Download the MIMII dataset and place it under:
-
-```text
-data/raw/
-```
-
-The dataset must follow:
-
-```text
-data/raw/{snr_db}_{machine_type}/{machine_id}/{label}/*.wav
-```
-
-with `label` set to `normal` or `abnormal`.
-
----
-
-## PyTorch / TorchAudio Troubleshooting
-
-Common setup issues and what they usually mean:
-
-### 1. `torchaudio` import or shared-library errors
-
-Examples:
-
-* missing `libcudart`
-* missing CUDA runtime libraries
-* import errors from `torchaudio` or `torchcodec`
-
-Usually this means:
-
-* `torch` and `torchaudio` do not match
-* CPU and CUDA wheels were mixed
-* `torchaudio` was installed separately after `torch` from a different source
-* a newer TorchAudio version is trying to use TorchCodec
-
-What to do:
-
-* uninstall `torch`, `torchaudio`, `torchvision`, and `torchcodec`
-* reinstall a matching PyTorch stack from one source
-* avoid installing `torchaudio` separately afterward from plain PyPI if you already used the official PyTorch wheel index
-
-### 2. `torchaudio.load(...)` cannot find an appropriate backend
-
-Usually this means the Python package is installed but the system audio backend is missing.
-
-On Linux, try:
-
-```bash
-pip install soundfile
-sudo apt update
-sudo apt install -y libsndfile1 ffmpeg
-```
-
-### 3. TorchCodec-related warnings or errors
-
-TorchAudio is moving audio I/O toward TorchCodec in newer releases.
-
-For this project, if the latest stack causes TorchCodec issues, it is acceptable to use a stable matching `torch` + `torchaudio` 2.8.x setup instead.
-
-### 4. GPU not being used
-
-Check:
-
-```bash
-python -c "import torch; print(torch.__version__); print(torch.version.cuda); print(torch.cuda.is_available())"
-```
-
-If `torch.cuda.is_available()` is `False`, your environment is not using CUDA correctly.
-
-In that case:
-
-* verify the correct CUDA PyTorch install command was used
-* verify the NVIDIA driver / GPU environment on the machine
-* or fall back to CPU-only setup
-
-
-
----
-
-## Baseline Pipeline
-
-The current baseline path is:
-
-1. saved split manifest
-2. raw WAV dataset loader
-3. deterministic preprocessing
-4. baseline CNN
-5. training loop
-6. evaluation
-7. visualization
-
-### Baseline preprocessing
-
-The baseline preprocessing pipeline is deterministic and runs on the fly through dataset transforms.
-
-Current baseline design:
-
-* raw multichannel waveform is averaged from 8 channels to mono
-* no resampling is needed because the dataset is already consistently `16000 Hz`
-* no trim/pad/segment step is used in baseline v1 because the verified clips are already consistent in length
-* no extra peak normalization is added in baseline v1
-* feature representation = log-mel spectrogram
-
-Current log-mel settings:
-
-* `sample_rate = 16000`
-* `n_fft = 1024`
-* `win_length = 1024`
-* `hop_length = 512`
-* `n_mels = 64`
-* `f_min = 0.0`
-* `f_max = 8000.0`
-
-Verified transformed model input shape per sample:
-
-* `[1, 64, 313]`
-
-### Baseline model
-
-The baseline model is a CNN classifier trained on log-mel inputs.
-
-Model contract:
-
-* input shape: `[batch_size, 1, 64, 313]`
-* output shape: `[batch_size]`
-* one logit per sample for binary classification
-
-Training uses:
-
-* `BCEWithLogitsLoss`
-
-Binary prediction rule during evaluation:
-
-* `probability = sigmoid(logit)`
-* predict `abnormal` if `probability >= 0.5`
-
----
-
-## Usage
-
-### 1. Generate split manifests
-
-The split pipeline is driven by `scripts/make_splits.py`.
-
-It:
-
-* scans `data/raw/` and builds a master index of WAV files
-* optionally saves `data/splits/master_index.csv`
-* filters the dataset to a selected scope such as one machine type
-* creates deterministic train/validation/test splits by group, not by individual file
-* saves the resulting split manifest under `data/splits/`
-
-For the one-machine-type baseline, each split group is defined as:
-
-* `group_id = (machine_id, snr_db)`
-
-This keeps all files from the same machine ID and dB condition inside exactly one split and helps reduce leakage across train, validation, and test.
-
-Example:
-
-```bash
-python scripts/make_splits.py --machine-type fan --write-master-index
-```
-
-Useful flags:
-
-* `--machine-type fan`
-* `--write-master-index`
-* `--seed 42`
-* `--train-ratio`, `--val-ratio`, `--test-ratio`
-
-Expected outputs:
-
-* `data/splits/master_index.csv` when `--write-master-index` is used
-* `data/splits/fan_split_seed42.csv` for the example above
-
----
-
-### 2. Train a model
-
-The baseline training pipeline is driven by `scripts/train.py`.
-
-Example:
-
-```bash
-python scripts/train.py \
-  --manifest-path data/splits/fan_split_seed42.csv \
-  --epochs 10 \
-  --batch-size 16 \
-  --learning-rate 1e-3 \
-  --run-name fan_baseline
-```
-
-This will:
-
-* load the saved `train` and `val` splits from the manifest
-* apply the baseline log-mel preprocessing on the fly
-* train the baseline CNN using mini-batches
-* validate every epoch
-* save:
-
-  * `best.pt` when validation loss improves
-  * `last.pt` every epoch for resume/recovery
-* save training history for later plotting
-
-Current device priority:
-
-1. CUDA
-2. MPS
-3. CPU
-
-Example artifact layout:
-
-```text
-artifacts/
-├── checkpoints/
-│   └── fan_baseline/
-│       ├── best.pt
-│       └── last.pt
-└── metrics/
-    └── fan_baseline/
-        ├── history.json
-        └── run_config.json
-```
-
----
-
-### 3. Evaluate a trained model
-
-The evaluation pipeline is driven by `scripts/evaluate.py`.
-
-It:
-
-* loads the saved split manifest
-* creates the `test` dataset with the same baseline transform
-* loads the saved best checkpoint
-* runs inference on the test split
-* computes baseline test metrics
-* saves the results to a metrics JSON file
-
-Example:
-
-```bash
-python scripts/evaluate.py \
-  --manifest-path data/splits/fan_split_seed42.csv \
-  --checkpoint-path artifacts/checkpoints/fan_baseline/best.pt \
-  --run-name fan_baseline
-```
-
-Baseline evaluation metrics:
-
-* test loss
-* accuracy
-* precision
-* recall
-* F1
-* confusion matrix
-* ROC-AUC
-
-Example output artifact:
-
-```text
-artifacts/metrics/fan_baseline/test_metrics.json
-```
-
----
-
-### 4. Generate plots
-
-The plotting utility is driven by `scripts/plot_results.py`.
-
-It can generate:
-
-* training vs validation loss curve
-* validation accuracy curve
-* test confusion matrix
-
-Example:
-
-```bash
-python scripts/plot_results.py \
-  --history-path artifacts/metrics/fan_baseline/history.json \
-  --metrics-path artifacts/metrics/fan_baseline/test_metrics.json \
-  --run-name fan_baseline
-```
-
-Example output artifacts:
-
-```text
-artifacts/curves/fan_baseline/loss_curve.png
-artifacts/curves/fan_baseline/val_accuracy_curve.png
-artifacts/curves/fan_baseline/confusion_matrix.png
-```
 
 ---
 
@@ -526,27 +236,6 @@ The baseline currently prioritizes:
 
 Train-time augmentation is intentionally not included yet.
 
----
-
-## Reproducibility
-
-This project supports reproducible baseline runs through:
-
-* saved split manifests
-* deterministic baseline preprocessing
-* seed control
-* saved checkpoints
-* saved training history
-* saved test metrics
-* saved plots
-
-To reproduce a run, keep:
-
-* the manifest path
-* run name
-* checkpoint path
-* training settings
-* saved metric artifacts
 
 ---
 
@@ -568,3 +257,25 @@ The current focus is to establish a clean and stable baseline before moving to h
 * This project prioritizes **clarity, reproducibility, and modularity**
 * The codebase is structured so the baseline remains easy to inspect and extend
 * Keep the saved split manifests as source-of-truth artifacts for train/validation/test membership
+
+## Additional Experiments
+
+This repository also includes an exploratory autoencoder-based anomaly detection approach.
+
+The autoencoder is trained only on normal samples and uses reconstruction error as an anomaly score.
+
+This approach was implemented and evaluated but was not adopted as the main method due to weaker separation between normal and abnormal samples under the current setup.
+
+For usage details, see:
+- [Autoencoder experiment usage](docs/autoencoder_usage.md)
+
+
+## 📚 Documentation
+
+For more details, see:
+
+- 🔧 Setup: [docs/setup.md](docs/setup.md)
+- 📊 Baseline usage: [docs/baseline_usage.md](docs/baseline_usage.md)
+- 📁 Data layout: [docs/data.md](docs/data.md)
+- 🧠 Baseline design: [docs/baseline.md](docs/baseline.md)
+- 🔁 Reproducibility: [docs/reproducibility.md](docs/reproducibility.md)

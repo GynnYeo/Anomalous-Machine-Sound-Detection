@@ -122,7 +122,11 @@ def run_training(
 
         if history_path.exists():
             history = load_history(history_path)
-        print(f"Resumed training from checkpoint: {Path(resume_from).expanduser().resolve()}")
+        print(
+            "Resumed training from checkpoint: "
+            f"{Path(resume_from).expanduser().resolve()} | "
+            f"starting_epoch={start_epoch}"
+        )
 
     history["best_checkpoint_path"] = to_portable_path(best_checkpoint_path)
     history["last_checkpoint_path"] = to_portable_path(last_checkpoint_path)
@@ -226,6 +230,7 @@ def run_training(
         f"Training complete | total_time={total_training_time_seconds:.2f}s | "
         f"best_val_loss={history.get('best_val_loss', float('nan')):.4f}"
     )
+    _print_artifact_summary(history)
     return history
 
 
@@ -295,3 +300,16 @@ def _build_run_config(
         "checkpoint_dir": to_portable_path(checkpoint_dir),
         "history_dir": to_portable_path(history_dir),
     }
+
+
+def _print_artifact_summary(history: dict[str, Any]) -> None:
+    """Print the main output artifact paths for the completed training run."""
+    print("Saved artifacts:")
+    if history.get("best_checkpoint_path") is not None:
+        print(f"  best checkpoint: {history['best_checkpoint_path']}")
+    if history.get("last_checkpoint_path") is not None:
+        print(f"  last checkpoint: {history['last_checkpoint_path']}")
+    if history.get("history_path") is not None:
+        print(f"  history: {history['history_path']}")
+    if history.get("run_config_path") is not None:
+        print(f"  run config: {history['run_config_path']}")
