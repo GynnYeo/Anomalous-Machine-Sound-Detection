@@ -1,0 +1,29 @@
+{
+  "run_name": "all_machines_weight_grid_lr1em03_bs16_pw3p0",
+  "manifest_path": "data/splits/all_machines_split_seed42.csv",
+  "device": "cuda",
+  "batch_size": 16,
+  "learning_rate": 0.001,
+  "seed": 42,
+  "epochs_requested": 30,
+  "num_workers": 0,
+  "early_stopping_patience": 6,
+  "early_stopping_min_delta": 0.0,
+  "pos_weight_strategy": "manual",
+  "pos_weight": 3.0,
+  "model_name": "BaselineCNN",
+  "loss_name": "BCEWithLogitsLoss",
+  "optimizer_name": "Adam",
+  "preprocessing_name": "BaselineLogMelTransform",
+  "preprocessing_parameters": {
+    "sample_rate": 16000,
+    "n_fft": 1024,
+    "win_length": 1024,
+    "hop_length": 512,
+    "n_mels": 64,
+    "f_min": 0.0,
+    "f_max": 8000.0
+  },
+  "checkpoint_dir": "artifacts/checkpoints/all_machines_weight_grid_lr1em03_bs16_pw3p0",
+  "history_dir": "artifacts/metrics/all_machines_weight_grid_lr1em03_bs16_pw3p0"
+}

@@ -1,0 +1,30 @@
+{
+  "run_name": "all_machines_wider_cnn",
+  "manifest_path": "data/splits/all_machines_split_seed42.csv",
+  "device": "cuda",
+  "batch_size": 16,
+  "learning_rate": 0.001,
+  "seed": 42,
+  "epochs_requested": 20,
+  "num_workers": 0,
+  "early_stopping_patience": 4,
+  "early_stopping_min_delta": 0.0005,
+  "pos_weight_strategy": "manual",
+  "pos_weight": 1.5,
+  "model_name": "wider_cnn",
+  "model_class_name": "WiderCNN",
+  "loss_name": "BCEWithLogitsLoss",
+  "optimizer_name": "Adam",
+  "preprocessing_name": "BaselineLogMelTransform",
+  "preprocessing_parameters": {
+    "sample_rate": 16000,
+    "n_fft": 1024,
+    "win_length": 1024,
+    "hop_length": 512,
+    "n_mels": 64,
+    "f_min": 0.0,
+    "f_max": 8000.0
+  },
+  "checkpoint_dir": "artifacts/checkpoints/all_machines_wider_cnn",
+  "history_dir": "artifacts/metrics/all_machines_wider_cnn"
+}
